@@ -1,0 +1,92 @@
+"use client";
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useReducer,
+  type ReactNode,
+} from "react";
+import type { ChatMessage } from "@/lib/types";
+
+type ChatAction =
+  | { type: "ADD_MESSAGE"; message: ChatMessage }
+  | { type: "UPDATE_LAST_ASSISTANT"; content: string }
+  | { type: "SET_STREAMING"; streaming: boolean }
+  | { type: "CLEAR_CHAT" };
+
+interface ChatState {
+  messages: ChatMessage[];
+  isStreaming: boolean;
+}
+
+interface ChatContextValue extends ChatState {
+  addMessage: (message: ChatMessage) => void;
+  updateLastAssistant: (content: string) => void;
+  setStreaming: (streaming: boolean) => void;
+  clearChat: () => void;
+}
+
+const ChatContext = createContext<ChatContextValue | null>(null);
+
+function chatReducer(state: ChatState, action: ChatAction): ChatState {
+  switch (action.type) {
+    case "ADD_MESSAGE":
+      return { ...state, messages: [...state.messages, action.message] };
+    case "UPDATE_LAST_ASSISTANT": {
+      const msgs = [...state.messages];
+      const lastIdx = msgs.findLastIndex((m) => m.role === "assistant");
+      if (lastIdx >= 0) {
+        msgs[lastIdx] = { ...msgs[lastIdx], content: action.content };
+      }
+      return { ...state, messages: msgs };
+    }
+    case "SET_STREAMING":
+      return { ...state, isStreaming: action.streaming };
+    case "CLEAR_CHAT":
+      return { messages: [], isStreaming: false };
+  }
+}
+
+export function ChatProvider({ children }: { children: ReactNode }) {
+  const [state, dispatch] = useReducer(chatReducer, {
+    messages: [],
+    isStreaming: false,
+  });
+
+  const addMessage = useCallback((message: ChatMessage) => {
+    dispatch({ type: "ADD_MESSAGE", message });
+  }, []);
+
+  const updateLastAssistant = useCallback((content: string) => {
+    dispatch({ type: "UPDATE_LAST_ASSISTANT", content });
+  }, []);
+
+  const setStreaming = useCallback((streaming: boolean) => {
+    dispatch({ type: "SET_STREAMING", streaming });
+  }, []);
+
+  const clearChat = useCallback(() => {
+    dispatch({ type: "CLEAR_CHAT" });
+  }, []);
+
+  return (
+    <ChatContext.Provider
+      value={{
+        ...state,
+        addMessage,
+        updateLastAssistant,
+        setStreaming,
+        clearChat,
+      }}
+    >
+      {children}
+    </ChatContext.Provider>
+  );
+}
+
+export function useChat() {
+  const ctx = useContext(ChatContext);
+  if (!ctx) throw new Error("useChat must be used within ChatProvider");
+  return ctx;
+}

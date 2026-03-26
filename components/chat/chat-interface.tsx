@@ -1,0 +1,335 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Send } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { MessageBubble } from "@/components/chat/message-bubble";
+import { TypingIndicator } from "@/components/chat/typing-indicator";
+import {
+  CronSuggestionCard,
+  type WorkflowSuggestion,
+} from "@/components/chat/cron-suggestion-card";
+import { useChat } from "@/context/chat-context";
+import { useFiles } from "@/context/files-context";
+import { useWorkflows } from "@/context/workflows-context";
+import type { ChatMessage, CronConfig } from "@/lib/types";
+
+interface SuggestionState {
+  messageId: string;
+  suggestion: WorkflowSuggestion;
+  status: "pending" | "accepted" | "rejected";
+}
+
+export function ChatInterface() {
+  const { messages, isStreaming, addMessage, setStreaming, updateLastAssistant } =
+    useChat();
+  const { files } = useFiles();
+  const { workflows, addWorkflow } = useWorkflows();
+  const [input, setInput] = useState("");
+  const [suggestions, setSuggestions] = useState<SuggestionState[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const scrollToBottom = useCallback(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isStreaming, scrollToBottom]);
+
+  const sendMessage = useCallback(
+    async (content: string) => {
+      if (!content.trim() || isStreaming) return;
+
+      const userMsg: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        role: "user",
+        content: content.trim(),
+        timestamp: new Date().toISOString(),
+      };
+      addMessage(userMsg);
+      setInput("");
+      setStreaming(true);
+
+      const assistantMsg: ChatMessage = {
+        id: `msg-${Date.now() + 1}`,
+        role: "assistant",
+        content: "",
+        timestamp: new Date().toISOString(),
+      };
+      addMessage(assistantMsg);
+
+      try {
+        const apiMessages = [
+          ...messages.map((m) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+          })),
+          { role: "user" as const, content: content.trim() },
+        ];
+
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: apiMessages, files, workflows }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(
+            (errData as { error?: string }).error ?? `HTTP ${res.status}`
+          );
+        }
+
+        const reader = res.body?.getReader();
+        if (!reader) throw new Error("No response body");
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let fullText = "";
+        const toolCalls: Record<number, { name: string; args: string }> = {};
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const data = line.slice(6);
+            if (data === "[DONE]") {
+              // Stream complete — process any tool calls
+              for (const tc of Object.values(toolCalls)) {
+                if (tc.name === "suggest_workflow" && tc.args) {
+                  try {
+                    const suggestion = JSON.parse(tc.args) as WorkflowSuggestion;
+                    setSuggestions((prev) => [
+                      ...prev,
+                      {
+                        messageId: assistantMsg.id,
+                        suggestion,
+                        status: "pending",
+                      },
+                    ]);
+                  } catch {
+                    // invalid JSON
+                  }
+                }
+              }
+              break;
+            }
+
+            try {
+              const chunk = JSON.parse(data) as {
+                choices?: Array<{
+                  delta?: {
+                    content?: string | null;
+                    tool_calls?: Array<{
+                      index: number;
+                      function?: { name?: string; arguments?: string };
+                    }>;
+                  };
+                }>;
+              };
+
+              const delta = chunk.choices?.[0]?.delta;
+              if (!delta) continue;
+
+              // Text content
+              if (delta.content) {
+                fullText += delta.content;
+                updateLastAssistant(fullText);
+              }
+
+              // Tool call chunks
+              if (delta.tool_calls) {
+                for (const tc of delta.tool_calls) {
+                  if (!toolCalls[tc.index]) {
+                    toolCalls[tc.index] = { name: "", args: "" };
+                  }
+                  if (tc.function?.name) {
+                    toolCalls[tc.index].name = tc.function.name;
+                  }
+                  if (tc.function?.arguments) {
+                    toolCalls[tc.index].args += tc.function.arguments;
+                  }
+                }
+              }
+            } catch {
+              // parse error, skip
+            }
+          }
+        }
+      } catch (err) {
+        updateLastAssistant(
+          `Sorry, I encountered an error: ${err instanceof Error ? err.message : "Unknown error"}. Please try again.`
+        );
+      } finally {
+        setStreaming(false);
+      }
+    },
+    [
+      messages,
+      files,
+      workflows,
+      isStreaming,
+      addMessage,
+      setStreaming,
+      updateLastAssistant,
+    ]
+  );
+
+  const handleAcceptSuggestion = useCallback(
+    (index: number) => {
+      const s = suggestions[index];
+      if (!s) return;
+
+      const workflow: CronConfig = {
+        id: `wf-${Date.now()}`,
+        name: s.suggestion.name,
+        description: s.suggestion.description,
+        type: s.suggestion.type as CronConfig["type"],
+        schedule: {
+          frequency: s.suggestion.frequency as CronConfig["schedule"]["frequency"],
+          dayOfWeek: s.suggestion.dayOfWeek,
+          timeOfDay: s.suggestion.timeOfDay,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
+        channel: (s.suggestion.channel ?? "discord") as CronConfig["channel"],
+        contentBrief: s.suggestion.contentBrief,
+        status: "active",
+        createdAt: new Date().toISOString(),
+      };
+      addWorkflow(workflow);
+
+      setSuggestions((prev) =>
+        prev.map((item, i) =>
+          i === index ? { ...item, status: "accepted" } : item
+        )
+      );
+    },
+    [suggestions, addWorkflow]
+  );
+
+  const handleRejectSuggestion = useCallback(
+    (index: number) => {
+      setSuggestions((prev) =>
+        prev.map((item, i) =>
+          i === index ? { ...item, status: "rejected" } : item
+        )
+      );
+    },
+    []
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage(input);
+      }
+    },
+    [input, sendMessage]
+  );
+
+  return (
+    <div className="flex flex-1 flex-col overflow-hidden">
+      <ScrollArea className="flex-1" ref={scrollRef}>
+        <div className="mx-auto max-w-[720px] px-6 py-8">
+          {messages.length === 0 && (
+            <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
+              <div className="flex size-14 items-center justify-center rounded-2xl bg-brand/10">
+                <Send className="size-6 text-brand" />
+              </div>
+              <h2 className="mt-5 text-xl font-semibold tracking-tight">
+                Strategy session
+              </h2>
+              <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+                Tell me about your product, who you&apos;re trying to reach, and
+                what&apos;s blocking growth. I&apos;ll design a campaign playbook
+                with recurring automations you can deploy today.
+              </p>
+              <div className="mt-8 flex flex-wrap justify-center gap-2">
+                {[
+                  "We need daily active users",
+                  "Help with retention",
+                  "Referral program strategy",
+                  "Influencer content plan",
+                ].map((prompt) => (
+                  <button
+                    key={prompt}
+                    onClick={() => sendMessage(prompt)}
+                    className="rounded-full border border-white/[0.08] bg-surface px-4 py-2 text-xs font-medium text-muted-foreground transition-all hover:border-brand/30 hover:bg-brand/[0.04] hover:text-foreground"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="space-y-5">
+            {messages.map((msg) => (
+              <div key={msg.id}>
+                <MessageBubble message={msg} />
+                {suggestions
+                  .filter((s) => s.messageId === msg.id)
+                  .map((s, i) => {
+                    const globalIndex = suggestions.findIndex(
+                      (gs) => gs === s
+                    );
+                    return (
+                      <div key={i} className="ml-12 mt-3">
+                        <CronSuggestionCard
+                          suggestion={s.suggestion}
+                          onAccept={() => handleAcceptSuggestion(globalIndex)}
+                          onReject={() => handleRejectSuggestion(globalIndex)}
+                          accepted={s.status === "accepted"}
+                          rejected={s.status === "rejected"}
+                        />
+                      </div>
+                    );
+                  })}
+              </div>
+            ))}
+            {isStreaming &&
+              messages[messages.length - 1]?.content === "" && (
+                <TypingIndicator />
+              )}
+          </div>
+        </div>
+      </ScrollArea>
+
+      <div className="border-t border-white/[0.06] bg-background px-6 py-4">
+        <div className="mx-auto flex max-w-[720px] gap-3">
+          <Textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Describe your product, audience, or next campaign..."
+            className="min-h-[48px] max-h-[140px] resize-none rounded-xl border-white/[0.08] bg-surface text-sm placeholder:text-muted-foreground/50 focus-visible:ring-brand/30"
+            rows={1}
+            disabled={isStreaming}
+          />
+          <Button
+            size="icon-lg"
+            onClick={() => sendMessage(input)}
+            disabled={!input.trim() || isStreaming}
+            aria-label="Send message"
+            className="shrink-0 rounded-xl bg-brand hover:bg-brand/80"
+          >
+            <Send className="size-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
