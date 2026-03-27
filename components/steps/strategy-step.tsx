@@ -243,20 +243,28 @@ export function StrategyStep() {
                   <Send className="size-6 text-brand" />
                 </div>
                 <h2 className="mt-5 text-lg font-semibold tracking-tight">
-                  Let&apos;s build your playbook
+                  {files.length > 0 ? "Ready to audit" : "Brand discovery"}
                 </h2>
                 <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
                   {files.length > 0
-                    ? `I've ingested ${files.length} file${files.length !== 1 ? "s" : ""}. Tell me about your biggest growth challenge and I'll design automations around it.`
-                    : "Tell me about your business, who you're trying to reach, and what's blocking growth. I'll suggest automations you can deploy."}
+                    ? `I've ingested ${files.length} asset${files.length !== 1 ? "s" : ""}. Hit "Run brand audit" and I'll analyze your positioning, messaging, and competitive landscape — then we'll build a strategy.`
+                    : "No assets uploaded — that's fine. Tell me about what you built and who it's for, and I'll help you figure out your brand from scratch."}
                 </p>
                 <div className="mt-8 flex flex-wrap justify-center gap-2">
-                  {[
-                    "We need consistent daily active users",
-                    "Our retention is the bottleneck",
-                    "Help us amplify our referral program",
-                    "Build an influencer content calendar",
-                  ].map((prompt) => (
+                  {(files.length > 0
+                    ? [
+                        "Run brand audit",
+                        "What does my messaging actually say?",
+                        "How do I compare to competitors?",
+                        "Help me find my positioning",
+                      ]
+                    : [
+                        "I built something but don't know how to market it",
+                        "I need help figuring out my brand",
+                        "We have users but no clear message",
+                        "What should my marketing even focus on?",
+                      ]
+                  ).map((prompt) => (
                     <button
                       key={prompt}
                       onClick={() => sendMessage(prompt)}

@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { FileText, Image, Table, X } from "lucide-react";
+import { FileText, Globe, Image, Table, X } from "lucide-react";
 import type { UploadedFile } from "@/lib/types";
 import { FILE_CATEGORY_LABELS } from "@/lib/constants";
 import { useFiles } from "@/context/files-context";
@@ -10,9 +10,10 @@ interface FilePreviewCardProps {
   file: UploadedFile;
 }
 
-function getFileIcon(type: string) {
-  if (type.startsWith("image/")) return Image;
-  if (type === "text/csv") return Table;
+function getFileIcon(file: UploadedFile) {
+  if (file.sourceUrl) return Globe;
+  if (file.type.startsWith("image/")) return Image;
+  if (file.type === "text/csv") return Table;
   return FileText;
 }
 
@@ -24,18 +25,31 @@ function formatSize(bytes: number): string {
 
 export function FilePreviewCard({ file }: FilePreviewCardProps) {
   const { removeFile } = useFiles();
-  const Icon = getFileIcon(file.type);
+  const Icon = getFileIcon(file);
 
   return (
     <div className="group flex items-center gap-4 rounded-xl border border-white/[0.06] bg-surface p-4 transition-colors hover:bg-surface-hover">
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white/[0.05]">
-        <Icon className="size-[18px] text-muted-foreground" />
+      <div
+        className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${
+          file.sourceUrl ? "bg-brand/10" : "bg-white/[0.05]"
+        }`}
+      >
+        <Icon
+          className={`size-[18px] ${
+            file.sourceUrl ? "text-brand" : "text-muted-foreground"
+          }`}
+        />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{file.name}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          {formatSize(file.size)} &middot;{" "}
-          {FILE_CATEGORY_LABELS[file.category]}
+          {file.sourceUrl ? (
+            <span className="truncate">{file.sourceUrl}</span>
+          ) : (
+            formatSize(file.size)
+          )}
+          {" · "}
+          {FILE_CATEGORY_LABELS[file.category] ?? file.category}
         </p>
       </div>
       <Button

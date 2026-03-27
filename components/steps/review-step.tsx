@@ -1,7 +1,19 @@
 "use client";
 
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Check, Play, RotateCcw } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  ArrowLeft,
+  Check,
+  Play,
+  RotateCcw,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  BarChart3,
+  Zap,
+} from "lucide-react";
 import { useWorkflows } from "@/context/workflows-context";
 import { useFiles } from "@/context/files-context";
 import { useChat } from "@/context/chat-context";
@@ -12,7 +24,15 @@ import {
   FREQUENCY_LABELS,
   DAY_LABELS,
 } from "@/lib/constants";
-import { useState } from "react";
+import { generateMockPerformance } from "@/lib/mock-data";
+import type { WorkflowPerformance } from "@/lib/types";
+
+const TrendIcon = { up: TrendingUp, down: TrendingDown, flat: Minus };
+const TrendColor = {
+  up: "text-emerald-400",
+  down: "text-red-400",
+  flat: "text-muted-foreground",
+};
 
 export function ReviewStep() {
   const { workflows, updateWorkflow } = useWorkflows();
@@ -20,9 +40,22 @@ export function ReviewStep() {
   const { clearChat } = useChat();
   const { back, goTo } = useStepper();
   const [launched, setLaunched] = useState(false);
+  const [debriefText, setDebriefText] = useState("");
+  const [debriefLoading, setDebriefLoading] = useState(false);
+  const [showDebrief, setShowDebrief] = useState(false);
+  const debriefRef = useRef<HTMLDivElement>(null);
 
   const activeCount = workflows.filter((w) => w.status === "active").length;
   const draftCount = workflows.filter((w) => w.status === "draft").length;
+
+  const performance = useMemo(
+    () => (launched ? generateMockPerformance(workflows) : []),
+    [launched, workflows]
+  );
+  const perfMap = useMemo(
+    () => new Map(performance.map((p) => [p.workflowId, p])),
+    [performance]
+  );
 
   const handleLaunch = () => {
     for (const w of workflows) {
@@ -38,10 +71,67 @@ export function ReviewStep() {
     goTo("upload");
   };
 
+  const runDebrief = useCallback(async () => {
+    setShowDebrief(true);
+    setDebriefLoading(true);
+    setDebriefText("");
+
+    try {
+      const res = await fetch("/api/debrief", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workflows, performance }),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let fullText = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6);
+          if (data === "[DONE]") break;
+
+          try {
+            const chunk = JSON.parse(data) as {
+              choices?: Array<{ delta?: { content?: string | null } }>;
+            };
+            const content = chunk.choices?.[0]?.delta?.content;
+            if (content) {
+              fullText += content;
+              setDebriefText(fullText);
+            }
+          } catch {
+            // skip
+          }
+        }
+      }
+    } catch (err) {
+      setDebriefText(
+        `Error generating debrief: ${err instanceof Error ? err.message : "Unknown error"}`
+      );
+    } finally {
+      setDebriefLoading(false);
+    }
+  }, [workflows, performance]);
+
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1 overflow-auto px-8 py-8">
-        <div className="mx-auto max-w-[900px]">
+      <ScrollArea className="flex-1">
+        <div className="mx-auto max-w-[960px] px-8 py-8">
           {/* Stats row */}
           <div className="grid grid-cols-3 gap-4">
             <div className="rounded-xl border border-white/[0.06] bg-surface p-5">
@@ -63,13 +153,13 @@ export function ReviewStep() {
                 {files.length}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Brand assets ingested
+                Assets ingested
               </p>
             </div>
           </div>
 
-          {/* Success state */}
-          {launched && (
+          {/* Launch success */}
+          {launched && !showDebrief && (
             <div className="mt-6 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.04] p-6 text-center">
               <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-emerald-400/10">
                 <Check className="size-6 text-emerald-400" />
@@ -78,22 +168,144 @@ export function ReviewStep() {
                 Campaign pipeline is live
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                {workflows.length} automations are now scheduled and running. You&apos;ll see
-                activity appear here as they execute.
+                {workflows.length} automations are scheduled and running.
               </p>
+              <Button
+                onClick={runDebrief}
+                className="mt-5 gap-2 rounded-lg bg-brand px-5 text-sm font-medium text-white hover:bg-brand/80"
+              >
+                <BarChart3 className="size-4" />
+                Run weekly debrief
+              </Button>
             </div>
           )}
 
-          {/* Automation list */}
+          {/* Performance metrics + debrief */}
+          {showDebrief && (
+            <div className="mt-6 space-y-6">
+              {/* Performance cards */}
+              <div>
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold">
+                    Week of Mar 19–26 performance
+                  </h3>
+                  <span className="text-xs text-muted-foreground">
+                    Simulated data for demo
+                  </span>
+                </div>
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {workflows
+                    .filter((w) => w.status === "active")
+                    .map((w) => {
+                      const p = perfMap.get(w.id);
+                      if (!p) return null;
+                      const Icon = TrendIcon[p.trend];
+                      return (
+                        <div
+                          key={w.id}
+                          className="rounded-xl border border-white/[0.06] bg-surface p-4"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="text-sm font-semibold">{w.name}</p>
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                {WORKFLOW_TYPE_LABELS[w.type]} /{" "}
+                                {CHANNEL_LABELS[w.channel]}
+                              </p>
+                            </div>
+                            <div className={`flex items-center gap-1 ${TrendColor[p.trend]}`}>
+                              <Icon className="size-3.5" />
+                              <span className="text-xs font-medium">
+                                {p.trend === "up"
+                                  ? "+40%"
+                                  : p.trend === "down"
+                                    ? "-25%"
+                                    : "flat"}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="mt-3 grid grid-cols-4 gap-3">
+                            <div>
+                              <p className="text-lg font-semibold">{p.runs}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                Runs
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-lg font-semibold">
+                                {p.impressions}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                Reach
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-lg font-semibold">{p.clicks}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                Clicks
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-lg font-semibold">
+                                {p.engagementRate}%
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                Eng. rate
+                              </p>
+                            </div>
+                          </div>
+                          <div className="mt-3 rounded-lg bg-black/20 p-2.5">
+                            <p className="text-xs leading-relaxed text-foreground/70">
+                              {p.topContent}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* AI debrief */}
+              <div className="rounded-xl border border-brand/20 bg-brand/[0.03]">
+                <div className="flex items-center gap-2.5 border-b border-brand/10 px-5 py-4">
+                  <div className="flex size-7 items-center justify-center rounded-md bg-brand/10">
+                    <Zap className="size-3.5 text-brand" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">Weekly Debrief</p>
+                    <p className="text-xs text-muted-foreground">
+                      AI analysis of this week&apos;s performance
+                    </p>
+                  </div>
+                </div>
+                <div className="px-5 py-5" ref={debriefRef}>
+                  {debriefText ? (
+                    <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                      {debriefText}
+                    </div>
+                  ) : debriefLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="flex gap-1">
+                        <span className="size-1.5 animate-bounce rounded-full bg-brand/40 [animation-delay:0ms]" />
+                        <span className="size-1.5 animate-bounce rounded-full bg-brand/40 [animation-delay:150ms]" />
+                        <span className="size-1.5 animate-bounce rounded-full bg-brand/40 [animation-delay:300ms]" />
+                      </div>
+                      Analyzing your campaign data...
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Pipeline list */}
           <div className="mt-6">
             <h3 className="text-sm font-semibold">Automation pipeline</h3>
             <div className="mt-4 divide-y divide-white/[0.04] rounded-xl border border-white/[0.06] bg-surface">
               {workflows.map((w) => {
                 const schedule = [
                   FREQUENCY_LABELS[w.schedule.frequency],
-                  w.schedule.dayOfWeek
-                    ?.map((d) => DAY_LABELS[d])
-                    .join(", "),
+                  w.schedule.dayOfWeek?.map((d) => DAY_LABELS[d]).join(", "),
                   `at ${w.schedule.timeOfDay}`,
                 ]
                   .filter(Boolean)
@@ -148,7 +360,7 @@ export function ReviewStep() {
             </div>
           </div>
         </div>
-      </div>
+      </ScrollArea>
 
       <div className="flex shrink-0 items-center justify-between border-t border-white/[0.06] px-8 py-4">
         <Button
@@ -168,6 +380,15 @@ export function ReviewStep() {
             >
               <RotateCcw className="size-4" />
               New campaign
+            </Button>
+          )}
+          {launched && !showDebrief && (
+            <Button
+              onClick={runDebrief}
+              className="gap-2 rounded-lg bg-brand px-5 text-sm font-medium text-white hover:bg-brand/80"
+            >
+              <BarChart3 className="size-4" />
+              Weekly debrief
             </Button>
           )}
           {!launched && draftCount > 0 && (

@@ -20,6 +20,9 @@ export const FILE_CATEGORY_LABELS: Record<string, string> = {
   document: "Document",
   design: "Design File",
   data: "Data",
+  "landing-page": "Landing Page",
+  competitor: "Competitor",
+  social: "Social Profile",
   other: "Other",
 };
 

@@ -22,6 +22,7 @@ interface FilesState {
 
 interface FilesContextValue extends FilesState {
   addFile: (file: File) => Promise<void>;
+  addUrl: (url: string, category: FileCategory) => Promise<void>;
   removeFile: (id: string) => void;
 }
 
@@ -95,12 +96,44 @@ export function FilesProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "ADD_FILE", file: uploaded });
   }, []);
 
+  const addUrl = useCallback(async (url: string, category: FileCategory) => {
+    const res = await fetch("/api/scrape", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(err.error ?? `Failed to scrape: HTTP ${res.status}`);
+    }
+
+    const data = (await res.json()) as {
+      title: string;
+      content: string;
+      url: string;
+      hostname: string;
+    };
+
+    const uploaded: UploadedFile = {
+      id: `url-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: data.title || data.hostname,
+      type: "text/html",
+      size: data.content.length,
+      content: data.content,
+      uploadedAt: new Date().toISOString(),
+      category,
+      sourceUrl: data.url,
+    };
+    dispatch({ type: "ADD_FILE", file: uploaded });
+  }, []);
+
   const removeFile = useCallback((id: string) => {
     dispatch({ type: "REMOVE_FILE", id });
   }, []);
 
   return (
-    <FilesContext.Provider value={{ ...state, addFile, removeFile }}>
+    <FilesContext.Provider value={{ ...state, addFile, addUrl, removeFile }}>
       {children}
     </FilesContext.Provider>
   );

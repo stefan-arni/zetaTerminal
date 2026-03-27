@@ -1,4 +1,4 @@
-import type { CronConfig, DashboardStats, UploadedFile } from "@/lib/types";
+import type { CronConfig, UploadedFile, WorkflowPerformance } from "@/lib/types";
 
 export const MOCK_FILES: UploadedFile[] = [
   {
@@ -121,9 +121,91 @@ export const MOCK_WORKFLOWS: CronConfig[] = [
   },
 ];
 
-export const MOCK_STATS: DashboardStats = {
-  totalWorkflows: 5,
-  activeWorkflows: 4,
-  filesUploaded: 3,
-  scheduledThisWeek: 32,
-};
+/**
+ * Generate mock performance data for any set of workflows.
+ * Used for the weekly debrief demo — gives each workflow realistic-looking
+ * metrics with some clear winners, losers, and trends the AI can analyze.
+ */
+export function generateMockPerformance(
+  workflows: CronConfig[]
+): WorkflowPerformance[] {
+  return workflows
+    .filter((w) => w.status === "active")
+    .map((w) => {
+      // Deterministic-ish "randomness" seeded by workflow id
+      const seed = w.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+      const r = (min: number, max: number) =>
+        Math.floor(min + ((seed * 9301 + 49297) % 233280) / 233280 * (max - min));
+
+      const isDaily = w.schedule.frequency === "daily";
+      const runs = isDaily ? r(5, 7) : r(1, 2);
+      const impressions = runs * r(80, 400);
+      const clicks = Math.floor(impressions * (r(3, 18) / 100));
+      const conversions = Math.floor(clicks * (r(5, 30) / 100));
+      const engagementRate = +(clicks / Math.max(impressions, 1) * 100).toFixed(1);
+
+      const trends: Array<"up" | "down" | "flat"> = ["up", "down", "flat"];
+      const trend = trends[seed % 3];
+
+      const topContentOptions: Record<string, string[]> = {
+        "daily-activation": [
+          "\"Tonight's table is 🔥 — 8 players confirmed, high hand bonus active\" (32 clicks)",
+          "\"Tuesday 6pm ET — who's in? Last night's winner took $340\" (28 clicks)",
+        ],
+        "influencer-content": [
+          "Jake's story about the bad beat at the final table (1.2K views, 89 link clicks)",
+          "\"Watch me play this hand wrong\" reel — 3.4K views, 142 profile visits",
+        ],
+        "retention-sequence": [
+          "\"Hey [name], the table's been empty without you\" — 18% reply rate",
+          "\"You left $10 referral credit on the table\" — 24% re-engagement",
+        ],
+        "referral-push": [
+          "Leaderboard post drove 6 new referral shares in 24hrs",
+          "\"Top referrer this week won $50 bonus\" — 12 new referral link copies",
+        ],
+        "agent-outreach": [
+          "Monday check-in email — 3/5 agents replied, 1 confirmed new player group",
+          "Agent Mike routed 8 players after seeing this week's promo sheet",
+        ],
+      };
+
+      const contentOpts = topContentOptions[w.type] ?? [
+        `Best performing content from ${w.name}`,
+      ];
+      const topContent = contentOpts[seed % contentOpts.length];
+
+      const noteOptions: Record<string, string[]> = {
+        up: [
+          "Engagement up 40% vs last week — the more personal tone is landing better.",
+          "Strong week. Click-through rate doubled after switching to evening send times.",
+          "New high. The competitive angle in copy is resonating with this audience.",
+        ],
+        down: [
+          "Engagement dropped 25% — possible audience fatigue. Need to rotate messaging.",
+          "Lower week. Tuesday and Wednesday posts underperformed — midweek may not be the slot.",
+          "Decline likely due to repeating the same CTA. Time to test a new hook.",
+        ],
+        flat: [
+          "Steady performance. Consistent but not growing — worth testing a new format.",
+          "Flat week. The formula works but isn't breaking through. Try a bold creative test.",
+          "Holding steady. Good baseline, but we should experiment to find the next gear.",
+        ],
+      };
+
+      const notes = noteOptions[trend][seed % noteOptions[trend].length];
+
+      return {
+        workflowId: w.id,
+        period: "Mar 19 – Mar 26, 2026",
+        runs,
+        impressions,
+        clicks,
+        conversions,
+        engagementRate,
+        topContent,
+        trend,
+        notes,
+      };
+    });
+}

@@ -16,12 +16,12 @@ const STEP_META: Record<Step, { number: number; label: string; description: stri
   upload: {
     number: 1,
     label: "Brand Intel",
-    description: "Upload docs, plans, and creative so Zeta knows your business",
+    description: "Drop your landing page, pitch deck, competitors — everything you have",
   },
   strategy: {
     number: 2,
-    label: "Strategy Session",
-    description: "Brief your AI strategist and design your growth playbook",
+    label: "Brand Audit & Strategy",
+    description: "Zeta analyzes your materials, audits your positioning, and builds your playbook",
   },
   schedule: {
     number: 3,

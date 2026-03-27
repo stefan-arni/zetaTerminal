@@ -8,9 +8,18 @@ export interface UploadedFile {
   content: string;
   uploadedAt: string;
   category: FileCategory;
+  sourceUrl?: string;
 }
 
-export type FileCategory = "brand" | "document" | "design" | "data" | "other";
+export type FileCategory =
+  | "brand"
+  | "document"
+  | "design"
+  | "data"
+  | "landing-page"
+  | "competitor"
+  | "social"
+  | "other";
 
 // ── Chat ──
 
@@ -71,11 +80,17 @@ export interface CronSchedule {
   customCron?: string;
 }
 
-// ── Dashboard ──
+// ── Performance / Debrief ──
 
-export interface DashboardStats {
-  totalWorkflows: number;
-  activeWorkflows: number;
-  filesUploaded: number;
-  scheduledThisWeek: number;
+export interface WorkflowPerformance {
+  workflowId: string;
+  period: string;
+  runs: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  engagementRate: number;
+  topContent: string;
+  trend: "up" | "down" | "flat";
+  notes: string;
 }
