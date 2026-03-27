@@ -12,7 +12,7 @@ export function StatsOverview() {
 
   const stats = [
     { value: active, label: "Live campaigns", accent: true },
-    { value: workflows.length, label: "Total automations", accent: false },
+    { value: workflows.length, label: "Total workflows", accent: false },
     { value: files.length, label: "Brand assets", accent: false },
     { value: touchpoints, label: "Touchpoints / wk", accent: false },
   ];

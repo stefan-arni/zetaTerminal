@@ -1,0 +1,424 @@
+"use client";
+
+import { useCallback, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Bell, Mail, Calendar,
+  Copy, Check as CheckIcon,
+  Zap, Clock, TrendingUp,
+} from "lucide-react";
+import { useChat } from "@/context/chat-context";
+
+// ── Utilities ──────────────────────────────────────────────────────────────────
+
+function stripEmoji(text: string): string {
+  return text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "").trim();
+}
+
+// ── Section definitions ────────────────────────────────────────────────────────
+
+const SECTIONS = [
+  { id: "brand-positioning", keyword: "BRAND POSITIONING", label: "Brand Positioning" },
+  { id: "first-audience",    keyword: "FIRST AUDIENCE",    label: "First Audience" },
+  { id: "top-3-moves",       keyword: "TOP 3 MOVES",       label: "Top 3 Moves" },
+  { id: "not-yet",           keyword: "NOT YET",           label: "Not Yet" },
+  { id: "this-week",         keyword: "THIS WEEK",         label: "This Week" },
+] as const;
+
+function sectionIdForText(text: string): string | null {
+  const upper = text.toUpperCase();
+  for (const s of SECTIONS) {
+    if (upper.includes(s.keyword)) return s.id;
+  }
+  return null;
+}
+
+// ── Inline markdown ────────────────────────────────────────────────────────────
+
+function renderInline(text: string, key: string): React.ReactNode {
+  const parts = stripEmoji(text).split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**"))
+      return <strong key={`${key}-b${i}`} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
+    if (part.startsWith("*") && part.endsWith("*"))
+      return <em key={`${key}-i${i}`} className="italic text-foreground/70">{part.slice(1, -1)}</em>;
+    return <span key={`${key}-t${i}`}>{part}</span>;
+  });
+}
+
+// ── Standard content renderer ──────────────────────────────────────────────────
+
+function SectionContent({ lines }: { lines: string[] }) {
+  const elements: React.ReactNode[] = [];
+  let listBuffer: string[] = [];
+  let k = 0;
+
+  function flushList() {
+    if (listBuffer.length === 0) return;
+    const items = listBuffer.slice();
+    listBuffer = [];
+    elements.push(
+      <ul key={k++} className="my-3 space-y-2">
+        {items.map((item, i) => (
+          <li key={i} className="flex items-start gap-3 text-sm leading-relaxed text-foreground/80">
+            <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-brand/50" />
+            <span>{renderInline(item, `li-${k}-${i}`)}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (/^[-*] /.test(trimmed)) { listBuffer.push(trimmed.slice(2)); continue; }
+    if (/^\d+\. /.test(trimmed)) { listBuffer.push(trimmed.replace(/^\d+\. /, "")); continue; }
+
+    flushList();
+
+    if (trimmed === "") { elements.push(<div key={k++} className="h-1.5" />); continue; }
+
+    // Bold-label lines: **Label:**
+    if (/^\*\*[^*]+:\*\*/.test(trimmed)) {
+      elements.push(
+        <div key={k++} className="mt-3 text-sm leading-relaxed text-foreground/90">
+          {renderInline(trimmed, `lbl-${k}`)}
+        </div>
+      );
+      continue;
+    }
+
+    // Bold sub-header (no colon) — e.g. move names
+    if (/^\*\*[^*]+\*\*$/.test(trimmed)) {
+      elements.push(
+        <div key={k++} className="mt-3 text-sm font-semibold text-foreground">
+          {renderInline(trimmed, `sh-${k}`)}
+        </div>
+      );
+      continue;
+    }
+
+    elements.push(
+      <p key={k++} className="text-sm leading-relaxed text-foreground/80">
+        {renderInline(trimmed, `p-${k}`)}
+      </p>
+    );
+  }
+
+  flushList();
+  return <>{elements}</>;
+}
+
+// ── Top 3 Moves renderer ───────────────────────────────────────────────────────
+
+interface MoveBlock {
+  type: "now" | "soon" | "later";
+  header: string;
+  lines: string[];
+}
+
+const MOVE_CONFIG = {
+  now: {
+    Icon: Zap,
+    iconClass: "text-red-400",
+    cardClass: "border-l-2 border-red-400/60 bg-red-500/[0.04] rounded-r-xl pl-5 py-4 pr-4",
+  },
+  soon: {
+    Icon: Clock,
+    iconClass: "text-yellow-400",
+    cardClass: "border-l-2 border-yellow-400/60 bg-yellow-500/[0.04] rounded-r-xl pl-5 py-4 pr-4",
+  },
+  later: {
+    Icon: TrendingUp,
+    iconClass: "text-emerald-400",
+    cardClass: "border-l-2 border-emerald-400/60 bg-emerald-500/[0.04] rounded-r-xl pl-5 py-4 pr-4",
+  },
+} as const;
+
+function parseMoveBlocks(lines: string[]): MoveBlock[] {
+  const blocks: MoveBlock[] = [];
+  let current: MoveBlock | null = null;
+
+  for (const line of lines) {
+    const upper = line.toUpperCase();
+    const type: MoveBlock["type"] | null =
+      upper.includes("DO NOW") ? "now" :
+      upper.includes("DO SOON") ? "soon" :
+      upper.includes("BUILD TOWARD") ? "later" : null;
+
+    if (type) {
+      const header = stripEmoji(line.replace(/\*\*/g, "")).trim();
+      current = { type, header, lines: [] };
+      blocks.push(current);
+    } else if (current) {
+      current.lines.push(line);
+    }
+  }
+
+  return blocks;
+}
+
+function MovesSection({ lines }: { lines: string[] }) {
+  const blocks = parseMoveBlocks(lines);
+  if (blocks.length === 0) return <SectionContent lines={lines} />;
+
+  return (
+    <div className="mt-2 space-y-3">
+      {blocks.map((block, i) => {
+        const { Icon, iconClass, cardClass } = MOVE_CONFIG[block.type];
+        return (
+          <div key={i} className={cardClass}>
+            <div className="mb-3 flex items-center gap-2">
+              <Icon className={`size-4 ${iconClass}`} />
+              <span className={`text-sm font-semibold ${iconClass}`}>{block.header}</span>
+            </div>
+            <SectionContent lines={block.lines} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Section parsing ────────────────────────────────────────────────────────────
+
+interface ParsedSection {
+  id: string;
+  sectionKey: string | null;
+  headerLine: string;
+  contentLines: string[];
+}
+
+function parseSections(content: string): ParsedSection[] {
+  const chunks = content.split(/\n[ \t]*---[ \t]*\n/);
+  const result: ParsedSection[] = [];
+  let counter = 0;
+
+  for (const chunk of chunks) {
+    const trimmed = chunk.trim();
+    if (!trimmed) continue;
+
+    const lines = trimmed.split("\n");
+    const sectionKey = sectionIdForText(trimmed);
+    if (!sectionKey) continue; // skip opener sentence and other non-section chunks
+
+    // Find the header line and where content starts
+    const sectionMeta = SECTIONS.find((s) => s.id === sectionKey);
+    let headerLine = "";
+    let contentStart = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i].trim();
+      if (l && sectionMeta && l.toUpperCase().includes(sectionMeta.keyword)) {
+        headerLine = stripEmoji(l.replace(/\*\*/g, "")).trim();
+        contentStart = i + 1;
+        break;
+      }
+    }
+
+    result.push({
+      id: sectionKey ?? `section-${counter++}`,
+      sectionKey,
+      headerLine,
+      contentLines: lines.slice(contentStart),
+    });
+  }
+
+  return result;
+}
+
+// ── Section card ───────────────────────────────────────────────────────────────
+
+function SectionCard({ section }: { section: ParsedSection }) {
+  const isThisWeek = section.sectionKey === "this-week";
+  const isMoves = section.sectionKey === "top-3-moves";
+
+  return (
+    <div
+      id={section.id}
+      className={`scroll-mt-6 rounded-2xl border px-7 py-6 ${
+        isThisWeek
+          ? "border-brand/25 bg-brand/[0.03]"
+          : "border-white/[0.08] bg-surface"
+      }`}
+    >
+      {section.headerLine && (
+        <div className="mb-5 text-lg font-semibold tracking-tight text-foreground">
+          {section.headerLine}
+        </div>
+      )}
+      {isMoves ? (
+        <MovesSection lines={section.contentLines} />
+      ) : (
+        <SectionContent lines={section.contentLines} />
+      )}
+    </div>
+  );
+}
+
+// ── Mock workflows ─────────────────────────────────────────────────────────────
+
+const MOCK_WORKFLOWS = [
+  {
+    id: "community-listening",
+    title: "Community Listening",
+    description: "Monitor Reddit & Discord for your target keywords — weekly digest of relevant conversations.",
+    Icon: Bell,
+    tag: "Monitoring",
+  },
+  {
+    id: "beta-waitlist-email",
+    title: "Beta Waitlist Email",
+    description: "Auto-send a personalised welcome email when someone signs up for early access.",
+    Icon: Mail,
+    tag: "Email",
+  },
+  {
+    id: "weekly-checkin",
+    title: "Weekly Check-in",
+    description: "Monday reminder: post in one community, record one learning. 20 minutes.",
+    Icon: Calendar,
+    tag: "Habit",
+  },
+] as const;
+
+// ── Main component ─────────────────────────────────────────────────────────────
+
+export function BriefStep() {
+  const { messages } = useChat();
+  const [activatedCards, setActivatedCards] = useState<string[]>([]);
+  const [copied, setCopied] = useState(false);
+  const [activeSection, setActiveSection] = useState<string>(SECTIONS[0].id);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const briefMessage = messages.find(
+    (m) => m.role === "assistant" && m.content.includes("BRAND POSITIONING")
+  );
+
+  const copyConversation = useCallback(async () => {
+    const payload = JSON.stringify(
+      messages.map((m) => ({ role: m.role, content: m.content })),
+      null,
+      2
+    );
+    await navigator.clipboard.writeText(payload);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [messages]);
+
+  const scrollTo = (id: string) => {
+    setActiveSection(id);
+    const el = scrollRef.current?.querySelector(`#${id}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  if (!briefMessage) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        Brief not found — go back to the strategy session.
+      </div>
+    );
+  }
+
+  const sections = parseSections(briefMessage.content);
+  const availableSections = SECTIONS.filter((s) =>
+    sections.some((ps) => ps.id === s.id)
+  );
+
+  return (
+    <div className="flex h-full overflow-hidden">
+
+      {/* TOC sidebar */}
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-white/[0.06] px-5 py-8 md:flex">
+        <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-brand">
+          Contents
+        </p>
+        <nav className="space-y-0.5">
+          {availableSections.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => scrollTo(s.id)}
+              className={`w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors ${
+                activeSection === s.id
+                  ? "bg-brand/10 font-medium text-brand"
+                  : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </nav>
+        <div className="mt-auto pt-6">
+          <button
+            onClick={copyConversation}
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground"
+          >
+            {copied ? <CheckIcon className="size-3.5 text-brand" /> : <Copy className="size-3.5" />}
+            {copied ? "Copied!" : "Export JSON"}
+          </button>
+        </div>
+      </aside>
+
+      {/* Scrollable document */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+        <div className="px-8 py-10">
+
+          {/* Section cards */}
+          <div className="space-y-4">
+            {sections.map((section) => (
+              <SectionCard key={section.id} section={section} />
+            ))}
+          </div>
+
+          {/* Workflow cards */}
+          <div className="mt-10 pb-10">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-brand">
+              Activate a workflow
+            </p>
+            <p className="mb-5 text-sm text-muted-foreground">
+              These map to your Top 3 Moves. One click to turn them on.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {MOCK_WORKFLOWS.map(({ id, title, description, Icon, tag }) => {
+                const isActivated = activatedCards.includes(id);
+                return (
+                  <div
+                    key={id}
+                    className="flex flex-col rounded-xl border border-white/[0.08] bg-surface p-4"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-7 items-center justify-center rounded-md bg-white/[0.06]">
+                        <Icon className="size-3.5 text-muted-foreground" />
+                      </div>
+                      <span className="rounded-md bg-white/[0.05] px-2 py-0.5 text-[10px] text-muted-foreground">
+                        {tag}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm font-medium text-foreground">{title}</p>
+                    <p className="mt-1 flex-1 text-xs leading-relaxed text-muted-foreground">
+                      {description}
+                    </p>
+                    <Button
+                      size="sm"
+                      disabled={isActivated}
+                      onClick={() => setActivatedCards((prev) => [...prev, id])}
+                      className={
+                        isActivated
+                          ? "mt-4 w-full rounded-lg bg-emerald-900/30 text-xs font-medium text-emerald-400"
+                          : "mt-4 w-full rounded-lg bg-brand text-xs font-medium text-white hover:bg-brand/80"
+                      }
+                    >
+                      {isActivated ? "Activated ✓" : "Activate"}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}

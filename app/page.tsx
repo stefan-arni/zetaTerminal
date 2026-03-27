@@ -5,14 +5,12 @@ import { StepIndicator } from "@/components/layout/step-indicator";
 import { useStepper } from "@/context/stepper-context";
 import { UploadStep } from "@/components/steps/upload-step";
 import { StrategyStep } from "@/components/steps/strategy-step";
-import { ScheduleStep } from "@/components/steps/schedule-step";
-import { ReviewStep } from "@/components/steps/review-step";
+import { BriefStep } from "@/components/steps/brief-step";
 
 const STEP_COMPONENTS = {
   upload: UploadStep,
   strategy: StrategyStep,
-  schedule: ScheduleStep,
-  review: ReviewStep,
+  brief: BriefStep,
 } as const;
 
 export default function Page() {
@@ -31,6 +29,9 @@ export default function Page() {
           <span className="text-sm font-semibold tracking-[-0.01em]">
             Zeta
           </span>
+          <span className="text-xs text-muted-foreground">
+            Your AI Fractional CMO
+          </span>
         </div>
         <StepIndicator />
         <div className="w-[90px]" />
@@ -39,7 +40,7 @@ export default function Page() {
       {/* Step header */}
       <div className="shrink-0 border-b border-white/[0.06] px-8 py-5">
         <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-brand">
-          Step {m.number} of 4
+          Step {m.number} of 3
         </p>
         <h1 className="mt-1 text-xl font-semibold tracking-tight">
           {m.label}

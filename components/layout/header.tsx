@@ -5,16 +5,16 @@ import { Separator } from "@/components/ui/separator";
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/": {
-    title: "Command Center",
-    subtitle: "Marketing operations overview",
+    title: "Your AI Fractional CMO",
+    subtitle: "Strategy session",
   },
   "/chat": {
     title: "Strategy Session",
-    subtitle: "Design your growth playbook with AI",
+    subtitle: "Your fractional CMO, already informed",
   },
   "/workflows": {
-    title: "Automations",
-    subtitle: "Recurring campaigns and content pipelines",
+    title: "Workflows",
+    subtitle: "Recommended plays and content pipelines",
   },
   "/files": {
     title: "Brand Assets",

@@ -18,8 +18,8 @@ const ACTIONS = [
   },
   {
     icon: Workflow,
-    label: "Manage automations",
-    description: "Review active campaigns",
+    label: "Manage workflows",
+    description: "Review recommended plays",
     href: "/workflows",
   },
 ];

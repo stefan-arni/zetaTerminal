@@ -8,30 +8,25 @@ import {
   type ReactNode,
 } from "react";
 
-export type Step = "upload" | "strategy" | "schedule" | "review";
+export type Step = "upload" | "strategy" | "brief";
 
-const STEPS: Step[] = ["upload", "strategy", "schedule", "review"];
+const STEPS: Step[] = ["upload", "strategy", "brief"];
 
 const STEP_META: Record<Step, { number: number; label: string; description: string }> = {
   upload: {
     number: 1,
     label: "Brand Intel",
-    description: "Drop your landing page, pitch deck, competitors — everything you have",
+    description: "Drop your URLs and docs \u2014 I'll research you before we talk",
   },
   strategy: {
     number: 2,
-    label: "Brand Audit & Strategy",
-    description: "Zeta analyzes your materials, audits your positioning, and builds your playbook",
+    label: "Strategy Session",
+    description: "Your fractional CMO, already informed",
   },
-  schedule: {
+  brief: {
     number: 3,
-    label: "Schedule",
-    description: "Configure when each automation runs",
-  },
-  review: {
-    number: 4,
-    label: "Mission Control",
-    description: "Review your campaign pipeline and go live",
+    label: "Your Playbook",
+    description: "Turn strategy into action — workflows, moves, and first steps",
   },
 };
 

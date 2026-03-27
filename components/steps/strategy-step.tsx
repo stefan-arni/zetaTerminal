@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Send, ArrowRight, ArrowLeft } from "lucide-react";
+import { Send, Zap, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -28,12 +28,12 @@ export function StrategyStep() {
     useChat();
   const { files } = useFiles();
   const { workflows, addWorkflow } = useWorkflows();
-  const { next, back } = useStepper();
+  const { currentStep, goTo } = useStepper();
   const [input, setInput] = useState("");
   const [suggestions, setSuggestions] = useState<SuggestionState[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const hasAutoStarted = useRef(false);
 
-  const acceptedCount = suggestions.filter((s) => s.status === "accepted").length;
 
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
@@ -44,6 +44,137 @@ export function StrategyStep() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isStreaming, scrollToBottom]);
+
+  // Auto-advance to "brief" step only after streaming is fully done
+  useEffect(() => {
+    if (currentStep !== "strategy" || isStreaming) return;
+    const hasBrief = messages.some(
+      (m) =>
+        m.role === "assistant" &&
+        m.content.includes("BRAND POSITIONING")
+    );
+    if (hasBrief) goTo("brief");
+  }, [messages, isStreaming, currentStep, goTo]);
+
+  useEffect(() => {
+    if (hasAutoStarted.current || messages.length !== 0 || isStreaming) return;
+    hasAutoStarted.current = true;
+
+    const assistantMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      role: "assistant",
+      content: "",
+      timestamp: new Date().toISOString(),
+    };
+    addMessage(assistantMsg);
+    setStreaming(true);
+
+    const run = async () => {
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: [], files, workflows }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(
+            (errData as { error?: string }).error ?? `HTTP ${res.status}`
+          );
+        }
+
+        const reader = res.body?.getReader();
+        if (!reader) throw new Error("No response body");
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let fullText = "";
+        const toolCalls: Record<number, { name: string; args: string }> = {};
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const data = line.slice(6);
+            if (data === "[DONE]") {
+              for (const tc of Object.values(toolCalls)) {
+                if (tc.name === "suggest_workflow" && tc.args) {
+                  try {
+                    const suggestion = JSON.parse(tc.args) as WorkflowSuggestion;
+                    setSuggestions((prev) => [
+                      ...prev,
+                      {
+                        messageId: assistantMsg.id,
+                        suggestion,
+                        status: "pending",
+                      },
+                    ]);
+                  } catch {
+                    // invalid JSON
+                  }
+                }
+              }
+              break;
+            }
+
+            try {
+              const chunk = JSON.parse(data) as {
+                choices?: Array<{
+                  delta?: {
+                    content?: string | null;
+                    tool_calls?: Array<{
+                      index: number;
+                      function?: { name?: string; arguments?: string };
+                    }>;
+                  };
+                }>;
+              };
+
+              const delta = chunk.choices?.[0]?.delta;
+              if (!delta) continue;
+
+              if (delta.content) {
+                fullText += delta.content;
+                updateLastAssistant(fullText);
+              }
+
+              if (delta.tool_calls) {
+                for (const tc of delta.tool_calls) {
+                  if (!toolCalls[tc.index]) {
+                    toolCalls[tc.index] = { name: "", args: "" };
+                  }
+                  if (tc.function?.name) {
+                    toolCalls[tc.index].name = tc.function.name;
+                  }
+                  if (tc.function?.arguments) {
+                    toolCalls[tc.index].args += tc.function.arguments;
+                  }
+                }
+              }
+            } catch {
+              // parse error
+            }
+          }
+        }
+      } catch (err) {
+        updateLastAssistant(
+          `Sorry, I encountered an error: ${err instanceof Error ? err.message : "Unknown error"}. Please try again.`
+        );
+      } finally {
+        setStreaming(false);
+      }
+    };
+
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -236,84 +367,86 @@ export function StrategyStep() {
     <div className="flex h-full flex-col">
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full" ref={scrollRef}>
-          <div className="mx-auto max-w-[720px] px-6 py-8">
-            {messages.length === 0 && (
-              <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
-                <div className="flex size-14 items-center justify-center rounded-2xl bg-brand/10">
-                  <Send className="size-6 text-brand" />
-                </div>
-                <h2 className="mt-5 text-lg font-semibold tracking-tight">
-                  {files.length > 0 ? "Ready to audit" : "Brand discovery"}
-                </h2>
-                <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-                  {files.length > 0
-                    ? `I've ingested ${files.length} asset${files.length !== 1 ? "s" : ""}. Hit "Run brand audit" and I'll analyze your positioning, messaging, and competitive landscape — then we'll build a strategy.`
-                    : "No assets uploaded — that's fine. Tell me about what you built and who it's for, and I'll help you figure out your brand from scratch."}
-                </p>
-                <div className="mt-8 flex flex-wrap justify-center gap-2">
-                  {(files.length > 0
-                    ? [
-                        "Run brand audit",
-                        "What does my messaging actually say?",
-                        "How do I compare to competitors?",
-                        "Help me find my positioning",
-                      ]
-                    : [
-                        "I built something but don't know how to market it",
-                        "I need help figuring out my brand",
-                        "We have users but no clear message",
-                        "What should my marketing even focus on?",
-                      ]
-                  ).map((prompt) => (
-                    <button
-                      key={prompt}
-                      onClick={() => sendMessage(prompt)}
-                      className="rounded-full border border-white/[0.08] bg-surface px-4 py-2 text-xs font-medium text-muted-foreground transition-all hover:border-brand/30 hover:bg-brand/[0.04] hover:text-foreground"
-                    >
-                      {prompt}
-                    </button>
-                  ))}
+          <div className="mx-auto max-w-[760px] px-8 py-10">
+            {messages.length === 0 && isStreaming && (
+              <div className="rounded-2xl border border-white/[0.08] bg-surface px-7 py-8">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand/15 text-brand">
+                    <Zap className="size-3.5" />
+                  </div>
+                  <div>
+                    <TypingIndicator />
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      Reviewing your materials...
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
             <div className="space-y-5">
-              {messages.map((msg) => (
-                <div key={msg.id}>
-                  <MessageBubble message={msg} />
-                  {suggestions
-                    .filter((s) => s.messageId === msg.id)
-                    .map((s, i) => {
-                      const globalIndex = suggestions.findIndex((gs) => gs === s);
-                      return (
-                        <div key={i} className="ml-12 mt-3">
-                          <CronSuggestionCard
-                            suggestion={s.suggestion}
-                            onAccept={() => handleAcceptSuggestion(globalIndex)}
-                            onReject={() => handleRejectSuggestion(globalIndex)}
-                            accepted={s.status === "accepted"}
-                            rejected={s.status === "rejected"}
-                          />
+              {messages.map((msg) => {
+                // Brief message — hide the content, show a spinner instead
+                const isBrief =
+                  msg.role === "assistant" &&
+                  msg.content.includes("BRAND POSITIONING");
+
+                if (isBrief) {
+                  return (
+                    <div key={msg.id} className="rounded-2xl border border-brand/20 bg-brand/[0.03] px-7 py-5">
+                      <div className="flex items-center gap-3">
+                        <Loader2 className="size-4 animate-spin text-brand" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            Generating your marketing brief
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Loading into Your Playbook...
+                          </p>
                         </div>
-                      );
-                    })}
-                </div>
-              ))}
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={msg.id}>
+                    <MessageBubble message={msg} />
+                    {suggestions
+                      .filter((s) => s.messageId === msg.id)
+                      .map((s, i) => {
+                        const globalIndex = suggestions.findIndex((gs) => gs === s);
+                        return (
+                          <div key={i} className="ml-12 mt-3">
+                            <CronSuggestionCard
+                              suggestion={s.suggestion}
+                              onAccept={() => handleAcceptSuggestion(globalIndex)}
+                              onReject={() => handleRejectSuggestion(globalIndex)}
+                              accepted={s.status === "accepted"}
+                              rejected={s.status === "rejected"}
+                            />
+                          </div>
+                        );
+                      })}
+                  </div>
+                );
+              })}
               {isStreaming && messages[messages.length - 1]?.content === "" && (
                 <TypingIndicator />
               )}
             </div>
+
           </div>
         </ScrollArea>
       </div>
 
       {/* Input bar */}
-      <div className="border-t border-white/[0.06] bg-background px-6 py-4">
-        <div className="mx-auto flex max-w-[720px] gap-3">
+      <div className="border-t border-white/[0.06] bg-surface/50 px-8 py-4">
+        <div className="mx-auto flex max-w-[760px] gap-3">
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Describe your business, audience, or challenge..."
+            placeholder="Talk to your CMO..."
             className="min-h-[48px] max-h-[140px] resize-none rounded-xl border-white/[0.08] bg-surface text-sm placeholder:text-muted-foreground/50 focus-visible:ring-brand/30"
             rows={1}
             disabled={isStreaming}
@@ -330,32 +463,6 @@ export function StrategyStep() {
         </div>
       </div>
 
-      {/* Bottom nav */}
-      <div className="flex shrink-0 items-center justify-between border-t border-white/[0.06] px-8 py-3">
-        <Button
-          variant="ghost"
-          onClick={back}
-          className="gap-2 text-sm text-muted-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          Back
-        </Button>
-        <div className="text-center">
-          {acceptedCount > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {acceptedCount} automation{acceptedCount !== 1 ? "s" : ""} queued
-            </p>
-          )}
-        </div>
-        <Button
-          onClick={next}
-          disabled={workflows.length === 0}
-          className="gap-2 rounded-lg bg-brand px-5 text-sm font-medium text-white hover:bg-brand/80 disabled:opacity-40"
-        >
-          Configure schedule
-          <ArrowRight className="size-4" />
-        </Button>
-      </div>
     </div>
   );
 }
