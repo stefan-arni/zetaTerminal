@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -24,8 +24,8 @@ import {
   FREQUENCY_LABELS,
   DAY_LABELS,
 } from "@/lib/constants";
-import { generateMockPerformance } from "@/lib/mock-data";
-import type { WorkflowPerformance } from "@/lib/types";
+import { generateMockPerformance, MOCK_WORKFLOWS } from "@/lib/mock-data";
+import type { CronConfig, WorkflowPerformance } from "@/lib/types";
 
 const TrendIcon = { up: TrendingUp, down: TrendingDown, flat: Minus };
 const TrendColor = {
@@ -35,7 +35,7 @@ const TrendColor = {
 };
 
 export function ReviewStep() {
-  const { workflows, updateWorkflow } = useWorkflows();
+  const { workflows, updateWorkflow, addWorkflow } = useWorkflows();
   const { files } = useFiles();
   const { clearChat } = useChat();
   const { back, goTo } = useStepper();
@@ -43,7 +43,6 @@ export function ReviewStep() {
   const [debriefText, setDebriefText] = useState("");
   const [debriefLoading, setDebriefLoading] = useState(false);
   const [showDebrief, setShowDebrief] = useState(false);
-  const debriefRef = useRef<HTMLDivElement>(null);
 
   const activeCount = workflows.filter((w) => w.status === "active").length;
   const draftCount = workflows.filter((w) => w.status === "draft").length;
@@ -71,17 +70,29 @@ export function ReviewStep() {
     goTo("upload");
   };
 
-  const runDebrief = useCallback(async () => {
-    setShowDebrief(true);
-    setDebriefLoading(true);
-    setDebriefText("");
+  const loadDemoData = () => {
+    const demoWorkflows = MOCK_WORKFLOWS.map((w) => ({ ...w, status: "active" as const }));
+    for (const w of demoWorkflows) {
+      addWorkflow(w);
+    }
+    setLaunched(true);
+    // Run debrief directly with demo data (don't wait for state)
+    const demoPerf = generateMockPerformance(demoWorkflows);
+    runDebriefWith(demoWorkflows, demoPerf);
+  };
 
-    try {
-      const res = await fetch("/api/debrief", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workflows, performance }),
-      });
+  const runDebriefWith = useCallback(
+    async (wfs: CronConfig[], perf: WorkflowPerformance[]) => {
+      setShowDebrief(true);
+      setDebriefLoading(true);
+      setDebriefText("");
+
+      try {
+        const res = await fetch("/api/debrief", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workflows: wfs, performance: perf }),
+        });
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -126,7 +137,11 @@ export function ReviewStep() {
     } finally {
       setDebriefLoading(false);
     }
-  }, [workflows, performance]);
+  }, []);
+
+  const runDebrief = useCallback(() => {
+    runDebriefWith(workflows, performance);
+  }, [workflows, performance, runDebriefWith]);
 
   return (
     <div className="flex h-full flex-col">
@@ -157,6 +172,23 @@ export function ReviewStep() {
               </p>
             </div>
           </div>
+
+          {/* Empty state — load demo */}
+          {workflows.length === 0 && !launched && (
+            <div className="mt-6 rounded-xl border border-dashed border-white/[0.08] py-14 text-center">
+              <p className="text-sm font-medium">No automations in the pipeline</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Go through the strategy session, or load sample data to preview the debrief.
+              </p>
+              <Button
+                onClick={loadDemoData}
+                className="mt-5 gap-2 rounded-lg bg-brand px-5 text-sm font-medium text-white hover:bg-brand/80"
+              >
+                <BarChart3 className="size-4" />
+                Load demo data &amp; run debrief
+              </Button>
+            </div>
+          )}
 
           {/* Launch success */}
           {launched && !showDebrief && (
@@ -278,7 +310,7 @@ export function ReviewStep() {
                     </p>
                   </div>
                 </div>
-                <div className="px-5 py-5" ref={debriefRef}>
+                <div className="px-5 py-5">
                   {debriefText ? (
                     <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
                       {debriefText}
