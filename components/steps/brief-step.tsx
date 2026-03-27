@@ -247,7 +247,7 @@ function SectionCard({ section }: { section: ParsedSection }) {
       }`}
     >
       {section.headerLine && (
-        <div className="mb-5 text-lg font-semibold tracking-tight text-foreground capitalize">
+        <div className="mb-5 border-b border-white/[0.06] pb-4 text-lg font-semibold tracking-tight text-foreground capitalize">
           {section.headerLine.toLowerCase()}
         </div>
       )}
@@ -342,10 +342,10 @@ export function BriefStep() {
             <button
               key={s.id}
               onClick={() => scrollTo(s.id)}
-              className={`w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors ${
+              className={`w-full rounded-r-md px-3 py-2.5 text-left text-sm transition-colors ${
                 activeSection === s.id
-                  ? "bg-brand/10 font-medium text-brand"
-                  : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
+                  ? "border-l-2 border-brand bg-brand/10 font-medium text-brand"
+                  : "border-l-2 border-transparent text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
               }`}
             >
               {s.label}

@@ -48,28 +48,21 @@ function ZetaIntro({ sessionCount }: { sessionCount: number }) {
 
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-surface px-7 py-6">
-      <div className="flex items-start gap-4">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand/15">
-          <Zap className="size-4 text-brand" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-foreground">
-            {isReturning
-              ? "Good to see you back."
-              : "Before we talk, I do my homework."}
-          </p>
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            {isReturning
-              ? "Drop any updates — new pages, new docs, anything that's changed since last time. I'll read through it before your next session so we can pick up where we left off."
-              : "Give me your site URL and a competitor or two. I'll read through everything before we sit down — so I walk in knowing your positioning, not asking about it. The more honest context you give me, the more specific I can be."}
-          </p>
-          {!isReturning && (
-            <p className="mt-3 text-xs text-muted-foreground/60">
-              No site yet? Skip ahead — you can describe everything in the session.
-            </p>
-          )}
-        </div>
-      </div>
+      <p className="text-sm font-semibold text-foreground">
+        {isReturning
+          ? "Good to see you back."
+          : "Before we talk, I do my homework."}
+      </p>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        {isReturning
+          ? "Drop any updates — new pages, new docs, anything that's changed since last time. I'll read through it before your next session so we can pick up where we left off."
+          : "Give me your site URL and a competitor or two. I'll read through everything before we sit down — so I walk in knowing your positioning, not asking about it. The more honest context you give me, the more specific I can be."}
+      </p>
+      {!isReturning && (
+        <p className="mt-3 text-xs text-muted-foreground/60">
+          No site yet? Skip ahead — you can describe everything in the session.
+        </p>
+      )}
     </div>
   );
 }
