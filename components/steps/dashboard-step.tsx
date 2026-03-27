@@ -91,25 +91,14 @@ function MoveCard({ move, onSelect }: MoveCardProps) {
   return (
     <div
       className={[
-        "group flex flex-col rounded-2xl border p-6 transition-all duration-150",
+        "group flex flex-col rounded-2xl border-[1.5px] border-t-2 p-6 transition-all duration-150",
         isDone
-          ? "border-white/[0.05] bg-white/[0.02] opacity-60"
+          ? "border-white/[0.05] border-t-white/[0.08] bg-white/[0.02]"
           : isInProgress
-            ? "border-amber-400/20 bg-gradient-to-br from-card to-amber-400/[0.03]"
-            : "border-white/[0.07] bg-card hover:border-white/[0.14] hover:shadow-[0_0_0_1px_oklch(0.65_0.18_270_/_0.2),0_8px_24px_oklch(0_0_0_/_0.3)]",
+            ? "border-amber-400/20 border-t-amber-400/60 bg-gradient-to-br from-card to-amber-400/[0.03]"
+            : "border-white/[0.07] border-t-white/[0.07] bg-card hover:border-white/[0.12] hover:border-t-brand/50 hover:shadow-[0_0_0_1px_oklch(0.65_0.18_270_/_0.2),0_8px_24px_oklch(0_0_0_/_0.3)]",
       ].join(" ")}
     >
-      {/* Top accent bar */}
-      <div
-        className={[
-          "mb-5 h-px w-full rounded-full",
-          isInProgress
-            ? "bg-amber-400/60"
-            : isDone
-              ? "bg-white/[0.06]"
-              : "bg-brand/0 transition-all duration-150 group-hover:bg-brand/40",
-        ].join(" ")}
-      />
 
       <p className="mb-2.5 font-mono text-[10px] font-bold uppercase tracking-widest text-foreground/25">
         Move {move.number}
@@ -428,8 +417,7 @@ export function DashboardStep() {
       <div className="mx-auto w-full max-w-4xl px-8 py-8">
 
         {/* Check-in banner */}
-        <div className="mb-8 flex items-center justify-between gap-6 rounded-2xl border border-white/[0.07] bg-surface px-6 py-5"
-          style={{ borderLeft: "3px solid oklch(0.65 0.18 270)" }}>
+        <div className="mb-8 flex items-center justify-between gap-6 rounded-2xl border border-white/[0.07] border-l-[3px] border-l-brand bg-surface px-6 py-5">
           <div>
             <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-widest text-brand">
               Week of {weekLabel}
