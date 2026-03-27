@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Send, Zap, Loader2 } from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -369,22 +369,28 @@ export function StrategyStep() {
         <ScrollArea className="h-full" ref={scrollRef}>
           <div className="mx-auto max-w-[760px] px-8 py-10">
             {messages.length === 0 && isStreaming && (
-              <div className="rounded-2xl border border-white/[0.08] bg-surface px-7 py-8">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand/15 text-brand">
-                    <Zap className="size-3.5" />
-                  </div>
-                  <div>
-                    <TypingIndicator />
-                    <p className="mt-1.5 text-xs text-muted-foreground">
-                      Reviewing your materials...
-                    </p>
-                  </div>
-                </div>
+              <div className="rounded-2xl border border-white/[0.08] bg-surface px-8 py-8">
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/50">
+                  Your CMO reviewed your materials
+                </p>
+                <TypingIndicator />
               </div>
             )}
+            {/* Opening statement — render prominently when session just started */}
+            {messages.length === 1 && messages[0].role === "assistant" && !isStreaming && (
+              <div className="mb-8 rounded-2xl border border-white/[0.08] bg-surface px-8 py-8">
+                <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/50">
+                  Your CMO reviewed your materials
+                </p>
+                <MessageBubble message={messages[0]} isOpening />
+              </div>
+            )}
+
             <div className="space-y-5">
-              {messages.map((msg) => {
+              {messages.map((msg, idx) => {
+                // Skip the first message if rendered as opening above
+                if (idx === 0 && messages.length === 1 && msg.role === "assistant" && !isStreaming) return null;
+
                 // Brief message — hide the content, show a spinner instead
                 const isBrief =
                   msg.role === "assistant" &&

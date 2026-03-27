@@ -6,6 +6,7 @@ import type { ChatMessage } from "@/lib/types";
 
 interface MessageBubbleProps {
   message: ChatMessage;
+  isOpening?: boolean;
 }
 
 function renderInline(text: string, keyPrefix: string): React.ReactNode {
@@ -124,8 +125,13 @@ function MarkdownContent({ content }: { content: string }) {
   return <div>{elements}</div>;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, isOpening }: MessageBubbleProps) {
   const isUser = message.role === "user";
+
+  // Opening statement mode — no avatar chrome, just the content
+  if (isOpening) {
+    return <MarkdownContent content={message.content} />;
+  }
 
   return (
     <div className={cn("flex gap-3", isUser ? "flex-row-reverse" : "flex-row")}>

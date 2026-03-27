@@ -8,6 +8,7 @@ import {
   Zap, Clock, TrendingUp,
 } from "lucide-react";
 import { useChat } from "@/context/chat-context";
+import { useStepper } from "@/context/stepper-context";
 
 // ── Utilities ──────────────────────────────────────────────────────────────────
 
@@ -290,6 +291,7 @@ const MOCK_WORKFLOWS = [
 
 export function BriefStep() {
   const { messages } = useChat();
+  const { goTo } = useStepper();
   const [activatedCards, setActivatedCards] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [activeSection, setActiveSection] = useState<string>(SECTIONS[0].id);
@@ -318,8 +320,14 @@ export function BriefStep() {
 
   if (!briefMessage) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        Brief not found — go back to the strategy session.
+      <div className="flex h-full flex-col items-center justify-center gap-4">
+        <p className="text-sm text-muted-foreground">Your playbook isn&apos;t ready yet.</p>
+        <button
+          onClick={() => goTo("strategy")}
+          className="text-sm font-medium text-brand hover:text-brand/80 transition-colors"
+        >
+          ← Back to strategy session
+        </button>
       </div>
     );
   }
