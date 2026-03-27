@@ -8,9 +8,9 @@ import {
   type ReactNode,
 } from "react";
 
-export type Step = "upload" | "strategy" | "brief";
+export type Step = "upload" | "strategy" | "brief" | "dashboard";
 
-const STEPS: Step[] = ["upload", "strategy", "brief"];
+const STEPS: Step[] = ["upload", "strategy", "brief", "dashboard"];
 
 const STEP_META: Record<Step, { number: number; label: string; description: string }> = {
   upload: {
@@ -27,6 +27,11 @@ const STEP_META: Record<Step, { number: number; label: string; description: stri
     number: 3,
     label: "Your Playbook",
     description: "Turn strategy into action — workflows, moves, and first steps",
+  },
+  dashboard: {
+    number: 4,
+    label: "Your Workflows",
+    description: "Execute your Top 3 Moves",
   },
 };
 

@@ -6,17 +6,20 @@ import { useStepper } from "@/context/stepper-context";
 import { UploadStep } from "@/components/steps/upload-step";
 import { StrategyStep } from "@/components/steps/strategy-step";
 import { BriefStep } from "@/components/steps/brief-step";
+import { DashboardStep } from "@/components/steps/dashboard-step";
 
 const STEP_COMPONENTS = {
   upload: UploadStep,
   strategy: StrategyStep,
   brief: BriefStep,
+  dashboard: DashboardStep,
 } as const;
 
 export default function Page() {
   const { currentStep, meta } = useStepper();
   const StepComponent = STEP_COMPONENTS[currentStep];
   const m = meta[currentStep];
+  const isDashboard = currentStep === "dashboard";
 
   return (
     <div className="flex h-full flex-col">
@@ -33,19 +36,21 @@ export default function Page() {
             Your AI Fractional CMO
           </span>
         </div>
-        <StepIndicator />
+        {!isDashboard && <StepIndicator />}
         <div className="w-[90px]" />
       </header>
 
-      {/* Step header */}
-      <div className="shrink-0 border-b border-white/[0.06] px-8 py-5">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {m.label}
-        </h1>
-        {currentStep === "upload" && (
-          <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>
-        )}
-      </div>
+      {/* Step header — hidden on dashboard (it has its own layout) */}
+      {!isDashboard && (
+        <div className="shrink-0 border-b border-white/[0.06] px-8 py-5">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {m.label}
+          </h1>
+          {currentStep === "upload" && (
+            <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>
+          )}
+        </div>
+      )}
 
       {/* Step content */}
       <div className="flex-1 overflow-hidden">

@@ -396,7 +396,7 @@ export function BriefStep() {
           </div>
 
           {/* Workflow cards */}
-          <div className="mt-10 pb-10">
+          <div className="mt-10">
             <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/50">
               Activate a workflow
             </p>
@@ -438,6 +438,28 @@ export function BriefStep() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Dashboard CTA */}
+          <div className="mt-8 pb-10">
+            <div className="rounded-2xl border border-brand/20 bg-brand/[0.06] px-6 py-5">
+              <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-brand/60">
+                Your game plan is set
+              </p>
+              <p className="mb-4 text-[15px] font-semibold text-foreground">
+                Start executing your Top 3 Moves
+              </p>
+              <p className="mb-5 text-[13px] leading-relaxed text-muted-foreground">
+                Your dashboard tracks each move, surfaces the right signal to watch, and lets you get
+                tactical — draft the post, write the email, review the copy — in a focused chat.
+              </p>
+              <Button
+                onClick={() => goTo("dashboard")}
+                className="rounded-xl bg-brand px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-brand/80"
+              >
+                Go to your dashboard →
+              </Button>
             </div>
           </div>
 
