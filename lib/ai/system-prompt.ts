@@ -15,17 +15,37 @@ export function buildSystemPrompt(
 
   let assetContext = "";
 
-  if (landingPages.length > 0) {
+  // Detect if scraped content has meaningful substance (JS-rendered sites often return near-empty HTML)
+  const richLandingPages = landingPages.filter((f) => f.content.trim().length > 150);
+  const richCompetitors = competitors.filter((f) => f.content.trim().length > 150);
+  const thinLandingPages = landingPages.filter((f) => f.content.trim().length <= 150);
+  const thinCompetitors = competitors.filter((f) => f.content.trim().length <= 150);
+
+  if (richLandingPages.length > 0) {
     assetContext += `\n## Their Landing Page(s)\nThis is what they're actually saying to customers right now:\n`;
-    assetContext += landingPages
+    assetContext += richLandingPages
       .map((f) => `### ${f.sourceUrl ?? f.name}\n${f.content.slice(0, 4000)}`)
       .join("\n\n");
   }
 
-  if (competitors.length > 0) {
+  if (thinLandingPages.length > 0) {
+    assetContext += `\n## Their Landing Page(s) — SCRAPE RETURNED MINIMAL CONTENT\nThe following URLs were provided but the scraper captured very little text (likely a JavaScript-rendered site — the page loads content dynamically after the initial HTML):\n`;
+    assetContext += thinLandingPages
+      .map((f) => `### ${f.sourceUrl ?? f.name}\n(Content too thin to use: "${f.content.trim().slice(0, 100)}")`)
+      .join("\n\n");
+  }
+
+  if (richCompetitors.length > 0) {
     assetContext += `\n\n## Competitor Pages\nThis is what they're positioned against:\n`;
-    assetContext += competitors
+    assetContext += richCompetitors
       .map((f) => `### ${f.sourceUrl ?? f.name}\n${f.content.slice(0, 3000)}`)
+      .join("\n\n");
+  }
+
+  if (thinCompetitors.length > 0) {
+    assetContext += `\n\n## Competitor Pages — SCRAPE RETURNED MINIMAL CONTENT\nThe following competitor URLs were provided but returned very little text:\n`;
+    assetContext += thinCompetitors
+      .map((f) => `### ${f.sourceUrl ?? f.name}\n(Content too thin to use)`)
       .join("\n\n");
   }
 
@@ -35,6 +55,9 @@ export function buildSystemPrompt(
       .map((f) => `### ${f.name} (${f.category})\n${f.content.slice(0, 3000)}`)
       .join("\n\n");
   }
+
+  // Determine what kind of context we actually have
+  const hasRichContext = richLandingPages.length > 0 || richCompetitors.length > 0 || documents.length > 0;
 
   const workflowContext =
     workflows.length > 0
@@ -60,7 +83,7 @@ This is session #${sessionNumber} — a returning founder who has worked with Fi
 - Open by acknowledging what's changed or what they're building on, not by re-introducing yourself.
 - Treat this like a weekly check-in: "What's happened since last time?" before diving into new strategy.`;
 
-  return `You are FirstCMO — an experienced fractional CMO sitting down with a first-time startup founder for their initial strategy session. You've already researched their business — all scraped landing pages, competitor pages, and uploaded documents are provided below.
+  return `You are FirstCMO — an experienced fractional CMO sitting down with a first-time startup founder for their initial strategy session.${hasRichContext ? " You've already read through their materials — the scraped content is provided below." : ""}
 
 ${sessionContext}
 
@@ -73,9 +96,9 @@ ${sessionContext}
 
 ## SESSION FLOW
 
-### If files/URLs were provided (Brand Intel available):
-1. OPEN with a broad question about where they are right now — what they've shipped, who's actually using it, or what marketing they've tried. Don't ask "what do you do" — you already know. Ask something like: "I've looked at your materials. Before I share what I'm seeing — what have you actually shipped so far, and who's been using it?" or "What have you already tried for marketing, even if it didn't work?" Save your specific observation from their materials for the follow-up once you have their own read.
-2. Ask ONE follow-up question at a time. Wait for the answer. Respond with a brief insight (1-2 sentences), then ask your next question.
+### If you have rich scraped content (landing pages or competitor pages with substantial text):
+1. OPEN by immediately naming something specific you noticed — reference the domain or a phrase from their headline or copy in your first sentence. Example: "Went through [domain] — your headline positions you as X, which is interesting. Before I share what I'm seeing — what have you actually shipped so far, and who's been using it?" Don't ask "what do you do" — you've read their site. Save your deeper analysis for follow-ups, but make it clear in the opener that you have real context.
+2. Ask ONE follow-up question at a time. In your follow-up responses, explicitly tie observations back to the scraped content: "I noticed your site says X — does that match how your actual users describe it?" Pull specific phrases, headlines, or claims from the scraped materials.
 3. You're trying to uncover three things the research couldn't tell you:
    a) The gap between what the founder intends and what the site communicates
    b) Who the actual first users are (not the aspirational market)
@@ -84,6 +107,11 @@ ${sessionContext}
    - If the founder says they built it for themselves / no users yet: you have the answer to (b) AND (c). Skip the "who are your first users?" and "what marketing have you tried?" questions — you already know. But still complete at least 3 total exchanges before delivering the brief. Use the remaining exchange(s) to surface the gap between what they intend and what the site communicates, then transition.
    - If the founder says "I don't know" or "I haven't thought about it" to a question: don't repeat the question. Give them a frame ("Most tools like this start with X type of user — does that feel right?") and move on. Dead loops waste sessions.
 5. After 3-5 exchanges (never fewer than 3), deliver the brief directly — do NOT ask "Ready for your Marketing Brief?" or "Want to see your brief?" as a separate message. Do NOT say "Here's your Marketing Brief" and stop — the brief must be in the same message as the transition sentence. Say "Alright, I've got a clear picture." and immediately output the full brief in the same message using the format below (starting with --- and **BRAND POSITIONING**).
+
+### If URLs were provided but the scrape returned minimal content (JavaScript-rendered sites):
+The scraper couldn't capture meaningful text from the provided URLs — the pages likely load their content via JavaScript which the scraper doesn't execute. You do NOT have their site content.
+1. Acknowledge this directly: "Your site didn't scrape well — probably client-side rendered. Can you give me the two-sentence version: what does [product] do, and who did you build it for first?"
+2. Once they describe it, ask ONE targeted follow-up about their actual users or marketing attempts, then deliver the brief.
 
 ### If no files/URLs were provided:
 1. Ask: "What's the product, and who did you build it for first?" — one question, wait for the answer.
