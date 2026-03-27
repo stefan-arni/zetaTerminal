@@ -358,7 +358,7 @@ export function BriefStep() {
             className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground"
           >
             {copied ? <CheckIcon className="size-3.5 text-brand" /> : <Copy className="size-3.5" />}
-            {copied ? "Copied!" : "Export JSON"}
+            {copied ? "Copied!" : "Export"}
           </button>
         </div>
       </aside>

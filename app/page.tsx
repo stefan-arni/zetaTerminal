@@ -42,7 +42,9 @@ export default function Page() {
         <h1 className="text-2xl font-semibold tracking-tight">
           {m.label}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>
+        {currentStep === "upload" && (
+          <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>
+        )}
       </div>
 
       {/* Step content */}

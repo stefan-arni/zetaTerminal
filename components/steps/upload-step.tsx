@@ -227,7 +227,7 @@ export function UploadStep() {
                             handleScrape(input.id, urls[input.id] ?? "", input.category);
                         }}
                         placeholder={input.placeholder}
-                        className="rounded-lg border-white/[0.08] bg-background text-sm placeholder:text-muted-foreground/40 focus-visible:ring-brand/30"
+                        className="h-11 rounded-lg border-white/[0.08] bg-background text-sm placeholder:text-muted-foreground/40 focus-visible:ring-brand/30"
                       />
                       <Button
                         variant="outline"
@@ -236,7 +236,7 @@ export function UploadStep() {
                           handleScrape(input.id, urls[input.id] ?? "", input.category)
                         }
                         disabled={!urls[input.id]?.trim() || loadingUrls[input.id]}
-                        className="shrink-0 rounded-lg border-white/[0.08] px-4 text-sm"
+                        className="h-11 shrink-0 rounded-lg border-white/[0.08] px-4 text-sm"
                       >
                         {loadingUrls[input.id] ? (
                           <Loader2 className="size-3.5 animate-spin" />
