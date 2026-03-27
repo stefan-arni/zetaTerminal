@@ -39,10 +39,7 @@ export default function Page() {
 
       {/* Step header */}
       <div className="shrink-0 border-b border-white/[0.06] px-8 py-5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-brand">
-          Step {m.number} of 3
-        </p>
-        <h1 className="mt-1 text-xl font-semibold tracking-tight">
+        <h1 className="text-2xl font-semibold tracking-tight">
           {m.label}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>

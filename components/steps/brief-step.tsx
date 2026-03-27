@@ -244,8 +244,8 @@ function SectionCard({ section }: { section: ParsedSection }) {
       }`}
     >
       {section.headerLine && (
-        <div className="mb-5 text-lg font-semibold tracking-tight text-foreground">
-          {section.headerLine}
+        <div className="mb-5 text-lg font-semibold tracking-tight text-foreground capitalize">
+          {section.headerLine.toLowerCase()}
         </div>
       )}
       {isMoves ? (
@@ -406,7 +406,7 @@ export function BriefStep() {
                       className={
                         isActivated
                           ? "mt-4 w-full rounded-lg bg-emerald-900/30 text-xs font-medium text-emerald-400"
-                          : "mt-4 w-full rounded-lg bg-brand text-xs font-medium text-white hover:bg-brand/80"
+                          : "mt-4 w-full rounded-lg border border-brand/40 bg-transparent text-xs font-medium text-brand hover:bg-brand/10"
                       }
                     >
                       {isActivated ? "Activated ✓" : "Activate"}

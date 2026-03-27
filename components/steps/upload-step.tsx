@@ -310,7 +310,7 @@ export function UploadStep() {
         >
           {totalAssets > 0
             ? sessionCount > 0 ? "Start next session" : "Start strategy session"
-            : "Skip to strategy"}
+            : "Start session"}
           <ArrowRight className="size-4" />
         </Button>
       </div>
