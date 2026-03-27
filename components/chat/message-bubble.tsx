@@ -145,7 +145,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         className={cn(
           "rounded-2xl px-4 py-3",
           isUser
-            ? "max-w-[75%] bg-brand text-white"
+            ? "max-w-[75%] bg-white/[0.09] text-foreground"
             : "w-full max-w-[88%] bg-surface"
         )}
       >

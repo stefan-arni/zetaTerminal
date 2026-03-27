@@ -232,6 +232,7 @@ function parseSections(content: string): ParsedSection[] {
 
 function SectionCard({ section }: { section: ParsedSection }) {
   const isThisWeek = section.sectionKey === "this-week";
+  const isNotYet = section.sectionKey === "not-yet";
   const isMoves = section.sectionKey === "top-3-moves";
 
   return (
@@ -240,6 +241,8 @@ function SectionCard({ section }: { section: ParsedSection }) {
       className={`scroll-mt-6 rounded-2xl border px-7 py-6 ${
         isThisWeek
           ? "border-brand/25 bg-brand/[0.03]"
+          : isNotYet
+          ? "border-amber-500/20 bg-amber-500/[0.02]"
           : "border-white/[0.08] bg-surface"
       }`}
     >
@@ -331,7 +334,7 @@ export function BriefStep() {
 
       {/* TOC sidebar */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-white/[0.06] px-5 py-8 md:flex">
-        <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-brand">
+        <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/50">
           Contents
         </p>
         <nav className="space-y-0.5">
@@ -364,6 +367,19 @@ export function BriefStep() {
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="px-8 py-10">
 
+          {/* Document header */}
+          <div className="mb-8 border-b border-white/[0.06] pb-6">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/50">
+              Marketing Playbook
+            </p>
+            <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-foreground">
+              Your strategic brief
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+            </p>
+          </div>
+
           {/* Section cards */}
           <div className="space-y-4">
             {sections.map((section) => (
@@ -373,7 +389,7 @@ export function BriefStep() {
 
           {/* Workflow cards */}
           <div className="mt-10 pb-10">
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-brand">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/50">
               Activate a workflow
             </p>
             <p className="mb-5 text-sm text-muted-foreground">

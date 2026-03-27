@@ -440,7 +440,12 @@ export function StrategyStep() {
       </div>
 
       {/* Input bar */}
-      <div className="border-t border-white/[0.06] bg-surface/50 px-8 py-4">
+      <div className="border-t border-white/[0.06] bg-surface/50 px-8 pb-4 pt-3">
+        {messages.length <= 1 && !isStreaming && (
+          <p className="mx-auto mb-2 max-w-[760px] text-xs text-muted-foreground/50">
+            Answer a few questions — your playbook generates automatically.
+          </p>
+        )}
         <div className="mx-auto flex max-w-[760px] gap-3">
           <Textarea
             value={input}

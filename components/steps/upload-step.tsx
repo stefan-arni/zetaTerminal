@@ -84,8 +84,8 @@ function ZetaReadList({ files }: { files: UploadedFile[] }) {
   return (
     <div className="rounded-2xl border border-brand/20 bg-brand/[0.03] px-7 py-6">
       <div className="mb-4 flex items-center gap-2">
-        <Zap className="size-3.5 text-brand" />
-        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-brand">
+        <Zap className="size-3.5 text-muted-foreground/70" />
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
           What I&apos;ve read
         </p>
       </div>
@@ -200,8 +200,8 @@ export function UploadStep() {
           {/* Live URLs card */}
           <div className="rounded-2xl border border-white/[0.08] bg-surface px-7 py-6">
             <div className="mb-1 flex items-center gap-2">
-              <Globe className="size-3.5 text-brand" />
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-brand">
+              <Globe className="size-3.5 text-muted-foreground/70" />
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
                 Live URLs
               </p>
             </div>
@@ -271,8 +271,8 @@ export function UploadStep() {
           {/* Documents card */}
           <div className="rounded-2xl border border-white/[0.08] bg-surface px-7 py-6">
             <div className="mb-1 flex items-center gap-2">
-              <FileText className="size-3.5 text-brand" />
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-brand">
+              <FileText className="size-3.5 text-muted-foreground/70" />
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
                 Documents &amp; Files
               </p>
             </div>
