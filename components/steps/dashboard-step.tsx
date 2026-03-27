@@ -499,7 +499,7 @@ export function DashboardStep() {
         <div className="mb-8 flex items-center justify-between gap-6 rounded-2xl border border-white/[0.07] border-l-[3px] border-l-brand bg-surface px-6 py-5">
           <div>
             <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-widest text-brand">
-              Week of {weekLabel}
+              Next weekly check-in · {weekLabel}
             </p>
             <h2 className="text-[16px] font-semibold text-foreground">
               How are your moves landing?
@@ -512,7 +512,7 @@ export function DashboardStep() {
             onClick={() => goTo("strategy")}
             className="shrink-0 rounded-xl bg-brand px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-brand/80"
           >
-            Start weekly check-in →
+            Check in now →
           </Button>
         </div>
 
