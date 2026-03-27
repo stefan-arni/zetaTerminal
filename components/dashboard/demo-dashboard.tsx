@@ -1,17 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useStepper } from "@/context/stepper-context";
 import { useFiles } from "@/context/files-context";
-import { useChat } from "@/context/chat-context";
 import { WorkflowChatProvider, useWorkflowChat } from "@/context/workflow-chat-context";
 import type { ChatMessage } from "@/lib/types";
 import type { WorkflowContext } from "@/lib/ai/system-prompt";
 
-// ── Types ──────────────────────────────────────────────────────────────────────
+// ── Demo move data ─────────────────────────────────────────────────────────────
 
 export type MoveStatus = "not-started" | "in-progress" | "done";
 
@@ -24,87 +24,35 @@ export interface DemoMove {
   status: MoveStatus;
 }
 
-// ── Playbook parser ────────────────────────────────────────────────────────────
-
-function stripEmoji(text: string): string {
-  return text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "").trim();
-}
-
-function parseMovesFromBrief(content: string): DemoMove[] {
-  // Split into --- separated chunks (same as brief-step.tsx)
-  const chunks = content.split(/\n[ \t]*---[ \t]*\n/);
-  const movesChunk = chunks.find((c) => c.toUpperCase().includes("TOP 3 MOVES"));
-  if (!movesChunk) return [];
-
-  const lines = movesChunk.split("\n");
-  const tierNumbers: Record<string, string> = { now: "01", soon: "02", later: "03" };
-
-  type TierKey = "now" | "soon" | "later";
-  const blocks: Array<{ tier: TierKey; lines: string[] }> = [];
-  let current: { tier: TierKey; lines: string[] } | null = null;
-
-  for (const line of lines) {
-    const upper = line.toUpperCase();
-    const tier: TierKey | null =
-      upper.includes("DO NOW") ? "now" :
-      upper.includes("DO SOON") ? "soon" :
-      upper.includes("BUILD TOWARD") ? "later" : null;
-
-    if (tier) {
-      current = { tier, lines: [] };
-      blocks.push(current);
-    } else if (current) {
-      current.lines.push(line);
-    }
-  }
-
-  const moves: DemoMove[] = [];
-
-  for (const block of blocks) {
-    let name = "";
-    let action = "";
-    let signal = "";
-
-    for (const line of block.lines) {
-      const trimmed = line.trim();
-
-      // Move name: first **...** line not matching tier keywords
-      if (!name && /^\*\*[^*]+\*\*$/.test(trimmed)) {
-        const candidate = stripEmoji(trimmed.replace(/\*\*/g, "")).trim();
-        const upper = candidate.toUpperCase();
-        if (!upper.includes("DO NOW") && !upper.includes("DO SOON") && !upper.includes("BUILD TOWARD")) {
-          name = candidate;
-        }
-        continue;
-      }
-
-      // Action: "- What: ..."
-      if (!action && /^-\s*what:/i.test(trimmed)) {
-        action = trimmed.replace(/^-\s*what:\s*/i, "").trim();
-        continue;
-      }
-
-      // Signal: "- You'll know it worked when: ..."
-      if (!signal && /^-\s*you'?ll know it worked when:/i.test(trimmed)) {
-        signal = trimmed.replace(/^-\s*you'?ll know it worked when:\s*/i, "").trim();
-        continue;
-      }
-    }
-
-    if (!name && !action) continue; // skip empty blocks
-
-    moves.push({
-      id: `move-${block.tier}-${Date.now()}-${Math.random()}`,
-      number: tierNumbers[block.tier],
-      name: name || "Untitled move",
-      action: action || "",
-      signal: signal || "",
-      status: "not-started",
-    });
-  }
-
-  return moves;
-}
+const DEMO_MOVES: DemoMove[] = [
+  {
+    id: "reddit-seeding",
+    number: "01",
+    name: "Seed the Reddit Conversation",
+    action:
+      "Post 3 authentic questions in r/smallbusiness and r/freelance that surface what agency owners actually hate about project tracking. Don't pitch — ask. You're doing research in public.",
+    signal: "5+ upvotes on at least one post. DMs asking when you launch.",
+    status: "not-started",
+  },
+  {
+    id: "cold-email",
+    number: "02",
+    name: "Cold Email 20 Agency Ops Leads",
+    action:
+      "3-email sequence to studio managers and ops leads at agencies of 5–20 people. Lead with the pain — 'Your Q1 retainer numbers don't match what your team reported.' One CTA per email.",
+    signal: "30% open rate. At least 2 replies from your first batch of 20.",
+    status: "in-progress",
+  },
+  {
+    id: "landing-hero",
+    number: "03",
+    name: "Rewrite the Landing Page Hero",
+    action:
+      "Replace the feature-first hero with the single pain point your user interviews surfaced. Lead with the problem, not the solution. One CTA above the fold.",
+    signal: "Bounce rate drops 10pts. CTA click rate above 4%.",
+    status: "done",
+  },
+];
 
 // ── Status helpers ─────────────────────────────────────────────────────────────
 
@@ -151,7 +99,6 @@ function MoveCard({ move, onSelect }: MoveCardProps) {
             : "border-white/[0.07] border-t-white/[0.07] bg-card hover:border-white/[0.12] hover:border-t-brand/50 hover:shadow-[0_0_0_1px_oklch(0.65_0.18_270_/_0.2),0_8px_24px_oklch(0_0_0_/_0.3)]",
       ].join(" ")}
     >
-
       <p className="mb-2.5 font-mono text-[10px] font-bold uppercase tracking-widest text-foreground/25">
         Move {move.number}
       </p>
@@ -361,9 +308,7 @@ function WorkflowChatInner({ move, onBack }: WorkflowChatProps) {
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-[13px] font-medium text-foreground/60">
-              Ready to execute.
-            </p>
+            <p className="text-[13px] font-medium text-foreground/60">Ready to execute.</p>
             <p className="mt-1 max-w-sm text-[12px] leading-relaxed text-muted-foreground">
               Tell me where you want to start — I&apos;ll draft the copy, write the email, or
               review whatever you&apos;ve got.
@@ -441,18 +386,12 @@ function WorkflowChat({ move, onBack }: WorkflowChatProps) {
   );
 }
 
-// ── Dashboard step ─────────────────────────────────────────────────────────────
+// ── Demo dashboard ─────────────────────────────────────────────────────────────
 
-export function DashboardStep() {
+export function DemoDashboard() {
   const { goTo } = useStepper();
-  const { messages } = useChat();
+  const router = useRouter();
   const [selectedMove, setSelectedMove] = useState<DemoMove | null>(null);
-
-  const briefMessage = messages.find(
-    (m) => m.role === "assistant" && m.content.includes("BRAND POSITIONING")
-  );
-
-  const moves: DemoMove[] = briefMessage ? parseMovesFromBrief(briefMessage.content) : [];
 
   const handleSelectMove = useCallback((move: DemoMove) => {
     setSelectedMove(move);
@@ -462,28 +401,13 @@ export function DashboardStep() {
     setSelectedMove(null);
   }, []);
 
+  const handleCheckIn = useCallback(() => {
+    goTo("strategy");
+    router.push("/");
+  }, [goTo, router]);
+
   if (selectedMove) {
     return <WorkflowChat move={selectedMove} onBack={handleBack} />;
-  }
-
-  // Empty state — no playbook yet
-  if (moves.length === 0) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
-        <p className="text-[15px] font-semibold text-foreground">
-          Your active plays will appear here
-        </p>
-        <p className="max-w-sm text-[13px] leading-relaxed text-muted-foreground">
-          Complete your Strategy Session to see your Top 3 Moves as executable workflow cards.
-        </p>
-        <Button
-          onClick={() => goTo("strategy")}
-          className="mt-2 rounded-xl bg-brand px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-brand/80"
-        >
-          Go to Strategy Session →
-        </Button>
-      </div>
-    );
   }
 
   const weekLabel = new Date().toLocaleDateString("en-US", {
@@ -509,7 +433,7 @@ export function DashboardStep() {
             </p>
           </div>
           <Button
-            onClick={() => goTo("strategy")}
+            onClick={handleCheckIn}
             className="shrink-0 rounded-xl bg-brand px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-brand/80"
           >
             Start weekly check-in →
@@ -520,20 +444,18 @@ export function DashboardStep() {
         <div className="mb-5 flex items-baseline justify-between">
           <div>
             <h1 className="text-[20px] font-semibold tracking-tight text-foreground">
-              Your Active Plays
+              Your Workflows This Week
             </h1>
             <p className="mt-1 text-[13px] text-muted-foreground">
-              {moves.length} move{moves.length !== 1 ? "s" : ""} from your marketing playbook
+              3 moves from your marketing brief
             </p>
           </div>
-          <span className="font-mono text-[11px] text-foreground/25">
-            {weekLabel}
-          </span>
+          <span className="font-mono text-[11px] text-foreground/25">{weekLabel}</span>
         </div>
 
         {/* Move cards */}
         <div className="grid gap-4 lg:grid-cols-3">
-          {moves.map((move) => (
+          {DEMO_MOVES.map((move) => (
             <MoveCard key={move.id} move={move} onSelect={handleSelectMove} />
           ))}
         </div>

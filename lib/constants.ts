@@ -1,4 +1,4 @@
-export const APP_NAME = "Zeta Terminal";
+export const APP_NAME = "FirstCMO";
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 

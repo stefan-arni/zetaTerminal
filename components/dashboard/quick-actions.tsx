@@ -7,7 +7,7 @@ const ACTIONS = [
   {
     icon: MessageSquare,
     label: "Start strategy session",
-    description: "Brief Zeta on your growth goals",
+    description: "Brief FirstCMO on your growth goals",
     href: "/chat",
   },
   {

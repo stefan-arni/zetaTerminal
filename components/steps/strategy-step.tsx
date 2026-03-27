@@ -28,11 +28,12 @@ export function StrategyStep() {
     useChat();
   const { files } = useFiles();
   const { workflows, addWorkflow } = useWorkflows();
-  const { currentStep, goTo } = useStepper();
+  const { goTo } = useStepper();
   const [input, setInput] = useState("");
   const [suggestions, setSuggestions] = useState<SuggestionState[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasAutoStarted = useRef(false);
+  const sessionNumber = parseInt(localStorage.getItem("zeta_session_count") ?? "1", 10);
 
 
   const scrollToBottom = useCallback(() => {
@@ -45,16 +46,6 @@ export function StrategyStep() {
     scrollToBottom();
   }, [messages, isStreaming, scrollToBottom]);
 
-  // Auto-advance to "brief" step only after streaming is fully done
-  useEffect(() => {
-    if (currentStep !== "strategy" || isStreaming) return;
-    const hasBrief = messages.some(
-      (m) =>
-        m.role === "assistant" &&
-        m.content.includes("BRAND POSITIONING")
-    );
-    if (hasBrief) goTo("brief");
-  }, [messages, isStreaming, currentStep, goTo]);
 
   useEffect(() => {
     if (hasAutoStarted.current || messages.length !== 0 || isStreaming) return;
@@ -74,7 +65,7 @@ export function StrategyStep() {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: [], files, workflows }),
+          body: JSON.stringify({ messages: [], files, workflows, sessionNumber }),
         });
 
         if (!res.ok) {
@@ -210,7 +201,7 @@ export function StrategyStep() {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: apiMessages, files, workflows }),
+          body: JSON.stringify({ messages: apiMessages, files, workflows, sessionNumber }),
         });
 
         if (!res.ok) {
@@ -368,46 +359,85 @@ export function StrategyStep() {
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full" ref={scrollRef}>
           <div className="mx-auto max-w-[760px] px-8 py-10">
-            {messages.length === 0 && isStreaming && (
-              <div className="rounded-2xl border border-white/[0.08] bg-surface px-8 py-8">
-                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/50">
-                  Your CMO reviewed your materials
-                </p>
-                <TypingIndicator />
-              </div>
-            )}
-            {/* Opening statement — render prominently when session just started */}
-            {messages.length === 1 && messages[0].role === "assistant" && !isStreaming && (
+            {/* Opening statement — stays in box during streaming and after */}
+            {(messages.length === 0 && isStreaming) || (messages.length === 1 && messages[0]?.role === "assistant") ? (
               <div className="mb-8 rounded-2xl border border-white/[0.08] bg-surface px-8 py-8">
                 <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/50">
                   Your CMO reviewed your materials
                 </p>
-                <MessageBubble message={messages[0]} isOpening />
+                {!messages[0]?.content ? (
+                  <TypingIndicator />
+                ) : (
+                  <MessageBubble message={messages[0]} isOpening />
+                )}
               </div>
-            )}
+            ) : null}
 
             <div className="space-y-5">
               {messages.map((msg, idx) => {
-                // Skip the first message if rendered as opening above
-                if (idx === 0 && messages.length === 1 && msg.role === "assistant" && !isStreaming) return null;
+                // Skip the first message — always rendered in the opening box above
+                if (idx === 0 && messages.length === 1 && msg.role === "assistant") return null;
 
-                // Brief message — hide the content, show a spinner instead
+                // Brief message — let it stream in naturally, then show the card below
                 const isBrief =
                   msg.role === "assistant" &&
                   msg.content.includes("BRAND POSITIONING");
 
-                if (isBrief) {
+                // While streaming: show the transition sentence + a loading indicator
+                // Don't show the raw brief text — it gets replaced by the card after done
+                if (isBrief && isStreaming) {
+                  const preBriefContent = msg.content
+                    .split("**BRAND POSITIONING**")[0]
+                    .replace(/^---\s*/, "")
+                    .trim();
+
                   return (
-                    <div key={msg.id} className="rounded-2xl border border-brand/20 bg-brand/[0.03] px-7 py-5">
-                      <div className="flex items-center gap-3">
-                        <Loader2 className="size-4 animate-spin text-brand" />
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            Generating your marketing brief
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Loading into Your Playbook...
-                          </p>
+                    <div key={msg.id} className="space-y-4">
+                      {preBriefContent && (
+                        <MessageBubble message={{ ...msg, content: preBriefContent }} />
+                      )}
+                      <div className="rounded-2xl border border-brand/20 bg-brand/[0.03] px-7 py-5">
+                        <div className="flex items-center gap-3">
+                          <Loader2 className="size-4 animate-spin text-brand opacity-60" />
+                          <p className="text-sm text-muted-foreground">Generating your playbook…</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (isBrief) {
+                  // Extract any conversational text before the brief divider
+                  const preBriefContent = msg.content
+                    .split("**BRAND POSITIONING**")[0]
+                    .replace(/^---\s*/, "")
+                    .trim();
+
+                  return (
+                    <div key={msg.id} className="space-y-4">
+                      {preBriefContent && (
+                        <MessageBubble message={{ ...msg, content: preBriefContent }} />
+                      )}
+                      <div className="rounded-2xl border border-brand/20 bg-brand/[0.03] px-7 py-5">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <Loader2 className="size-4 text-brand opacity-40" />
+                            <div>
+                              <p className="text-sm font-medium text-foreground">
+                                Your playbook is ready
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Review it when you&apos;re ready
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => goTo("brief")}
+                            className="shrink-0 rounded-lg bg-brand hover:bg-brand/80 text-xs font-medium"
+                          >
+                            View Your Playbook
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -436,7 +466,7 @@ export function StrategyStep() {
                   </div>
                 );
               })}
-              {isStreaming && messages[messages.length - 1]?.content === "" && (
+              {isStreaming && messages[messages.length - 1]?.content === "" && messages.length > 1 && (
                 <TypingIndicator />
               )}
             </div>

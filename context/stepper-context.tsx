@@ -21,7 +21,7 @@ const STEP_META: Record<Step, { number: number; label: string; description: stri
   strategy: {
     number: 2,
     label: "Strategy Session",
-    description: "Your fractional CMO, already informed",
+    description: "Brand strategy for founders",
   },
   brief: {
     number: 3,

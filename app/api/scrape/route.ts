@@ -61,29 +61,40 @@ function extractTitle(html: string): string {
 function extractText(html: string): string {
   let text = html;
 
-  // Remove script, style, nav, footer, header tags and their contents
-  text = text.replace(
-    /<(script|style|nav|footer|header|noscript|iframe|svg)[^>]*>[\s\S]*?<\/\1>/gi,
-    " "
-  );
+  // Remove non-content blocks entirely (NOT header — heroes live there)
+  text = text.replace(/<(script|style|noscript|iframe|svg)[^>]*>[\s\S]*?<\/\1>/gi, "");
+  text = text.replace(/<(nav|footer)[^>]*>[\s\S]*?<\/\1>/gi, "");
+  text = text.replace(/<!--[\s\S]*?-->/g, "");
 
-  // Remove HTML comments
-  text = text.replace(/<!--[\s\S]*?-->/g, " ");
+  // Preserve heading structure — put each on its own line
+  text = text.replace(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi, "\n\n$1\n");
+  text = text.replace(/<h[4-6][^>]*>([\s\S]*?)<\/h[4-6]>/gi, "\n$1\n");
 
-  // Remove all HTML tags
+  // Paragraphs and line breaks → newlines
+  text = text.replace(/<\/p>/gi, "\n");
+  text = text.replace(/<br\s*\/?>/gi, "\n");
+
+  // List items → bullet lines
+  text = text.replace(/<li[^>]*>/gi, "\n- ");
+
+  // Strip remaining tags
   text = text.replace(/<[^>]+>/g, " ");
 
-  // Decode common HTML entities
+  // Decode HTML entities
   text = text
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ");
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#\d+;/g, " ");
 
-  // Collapse whitespace
-  text = text.replace(/\s+/g, " ").trim();
+  // Normalize whitespace: collapse spaces/tabs but keep meaningful line breaks
+  text = text.replace(/[ \t]+/g, " ");
+  text = text.replace(/^ /gm, "");
+  text = text.replace(/\n{3,}/g, "\n\n");
 
-  return text;
+  return text.trim();
 }

@@ -12,16 +12,17 @@ interface ChatRequest {
   files: UploadedFile[];
   workflows: CronConfig[];
   workflowContext?: WorkflowContext;
+  sessionNumber?: number;
 }
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as ChatRequest;
-    const { messages, files, workflows, workflowContext } = body;
+    const { messages, files, workflows, workflowContext, sessionNumber } = body;
 
     const systemPrompt = workflowContext
       ? buildTacticalSystemPrompt(workflowContext)
-      : buildSystemPrompt(files, workflows);
+      : buildSystemPrompt(files, workflows, sessionNumber ?? 1);
 
     const client = getClient();
     const stream = await client.chat.completions.create({

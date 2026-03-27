@@ -5,12 +5,12 @@ import { Separator } from "@/components/ui/separator";
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/": {
-    title: "Your AI Fractional CMO",
+    title: "Brand strategy for founders",
     subtitle: "Strategy session",
   },
   "/chat": {
     title: "Strategy Session",
-    subtitle: "Your fractional CMO, already informed",
+    subtitle: "Brand strategy for founders",
   },
   "/workflows": {
     title: "Workflows",
@@ -25,7 +25,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
 export function Header() {
   const pathname = usePathname();
   const meta = PAGE_META[pathname] ?? {
-    title: "Zeta Terminal",
+    title: "FirstCMO",
     subtitle: "",
   };
 

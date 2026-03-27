@@ -3,7 +3,6 @@
 import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Bell, Mail, Calendar,
   Copy, Check as CheckIcon,
   Zap, Clock, TrendingUp,
 } from "lucide-react";
@@ -261,38 +260,63 @@ function SectionCard({ section }: { section: ParsedSection }) {
   );
 }
 
-// ── Mock workflows ─────────────────────────────────────────────────────────────
+// ── Workflow cards ─────────────────────────────────────────────────────────────
 
-const MOCK_WORKFLOWS = [
-  {
-    id: "community-listening",
-    title: "Community Listening",
-    description: "Monitor Reddit & Discord for your target keywords — weekly digest of relevant conversations.",
-    Icon: Bell,
-    tag: "Monitoring",
-  },
-  {
-    id: "beta-waitlist-email",
-    title: "Beta Waitlist Email",
-    description: "Auto-send a personalised welcome email when someone signs up for early access.",
-    Icon: Mail,
-    tag: "Email",
-  },
-  {
-    id: "weekly-checkin",
-    title: "Weekly Check-in",
-    description: "Monday reminder: post in one community, record one learning. 20 minutes.",
-    Icon: Calendar,
-    tag: "Habit",
-  },
-] as const;
+interface WorkflowCard {
+  id: string;
+  title: string;
+  description: string;
+  signal: string;
+  moveType: MoveBlock["type"];
+}
+
+const TIER_CONFIG: Record<MoveBlock["type"], {
+  label: string;
+  textClass: string;
+  borderClass: string;
+  bgClass: string;
+  tagBgClass: string;
+}> = {
+  now:   { label: "DO NOW",       textClass: "text-red-400",     borderClass: "border-red-400/60",     bgClass: "bg-red-500/[0.03]",     tagBgClass: "bg-red-500/10"     },
+  soon:  { label: "DO SOON",      textClass: "text-yellow-400",  borderClass: "border-yellow-400/60",  bgClass: "bg-yellow-500/[0.03]",  tagBgClass: "bg-yellow-500/10"  },
+  later: { label: "BUILD TOWARD", textClass: "text-emerald-400", borderClass: "border-emerald-400/60", bgClass: "bg-emerald-500/[0.03]", tagBgClass: "bg-emerald-500/10" },
+};
+
+const FALLBACK_WORKFLOWS: WorkflowCard[] = [
+  { id: "move-workflow-0", title: "Community Listening",  description: "Monitor Reddit & Discord for your target keywords weekly.", signal: "You start seeing relevant conversations to join.", moveType: "now"   },
+  { id: "move-workflow-1", title: "Beta Waitlist Email",  description: "Auto-send a welcome email when someone signs up for early access.", signal: "You receive replies or questions from new signups.", moveType: "soon"  },
+  { id: "move-workflow-2", title: "Weekly Check-in",      description: "Monday reminder: post in one community, record one learning.", signal: "You have a consistent weekly presence in your target community.", moveType: "later" },
+];
+
+function workflowsFromMoves(sections: ParsedSection[]): WorkflowCard[] | null {
+  const movesSection = sections.find((s) => s.sectionKey === "top-3-moves");
+  if (!movesSection) return null;
+
+  const blocks = parseMoveBlocks(movesSection.contentLines);
+  if (blocks.length === 0) return null;
+
+  return blocks.map((block, i) => {
+    const nameLine = block.lines.find((l) => /^\*\*[^*:]+\*\*$/.test(l.trim()));
+    const name = nameLine ? stripEmoji(nameLine.replace(/\*\*/g, "")).trim() : `Move ${i + 1}`;
+    const whatLine = block.lines.find((l) => /^[-–]\s*what:/i.test(l.trim()));
+    const action = whatLine ? whatLine.replace(/^[-–]\s*what:\s*/i, "").trim() : "";
+    const signalLine = block.lines.find((l) => /worked when/i.test(l));
+    const signal = signalLine ? signalLine.replace(/^[-–]\s*you'll know it worked when:\s*/i, "").trim() : "";
+    return {
+      id: `move-workflow-${i}`,
+      title: name,
+      description: action || name,
+      signal,
+      moveType: block.type,
+    };
+  });
+}
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function BriefStep() {
   const { messages } = useChat();
   const { goTo } = useStepper();
-  const [activatedCards, setActivatedCards] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [activeSection, setActiveSection] = useState<string>(SECTIONS[0].id);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -336,6 +360,7 @@ export function BriefStep() {
   const availableSections = SECTIONS.filter((s) =>
     sections.some((ps) => ps.id === s.id)
   );
+  const workflowCards = workflowsFromMoves(sections) ?? FALLBACK_WORKFLOWS;
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -398,42 +423,38 @@ export function BriefStep() {
           {/* Workflow cards */}
           <div className="mt-10">
             <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/50">
-              Activate a workflow
+              Ready to execute
             </p>
             <p className="mb-5 text-sm text-muted-foreground">
-              These map to your Top 3 Moves. One click to turn them on.
+              Your 3 moves. Pick one and start.
             </p>
             <div className="grid gap-3 sm:grid-cols-3">
-              {MOCK_WORKFLOWS.map(({ id, title, description, Icon, tag }) => {
-                const isActivated = activatedCards.includes(id);
+              {workflowCards.map(({ id, title, description, signal, moveType }) => {
+                const tier = TIER_CONFIG[moveType];
                 return (
                   <div
                     key={id}
-                    className="flex flex-col rounded-xl border border-white/[0.08] bg-surface p-4"
+                    className={`flex flex-col rounded-xl border-l-2 px-4 py-4 ${tier.borderClass} ${tier.bgClass} border border-white/[0.06]`}
                   >
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-7 items-center justify-center rounded-md bg-white/[0.06]">
-                        <Icon className="size-3.5 text-muted-foreground" />
-                      </div>
-                      <span className="rounded-md bg-white/[0.05] px-2 py-0.5 text-[10px] text-muted-foreground">
-                        {tag}
-                      </span>
-                    </div>
-                    <p className="mt-3 text-sm font-medium text-foreground">{title}</p>
+                    <span className={`self-start rounded-md px-2 py-0.5 text-[10px] font-semibold ${tier.tagBgClass} ${tier.textClass}`}>
+                      {tier.label}
+                    </span>
+                    <p className="mt-3 text-sm font-semibold text-foreground">{title}</p>
                     <p className="mt-1 flex-1 text-xs leading-relaxed text-muted-foreground">
                       {description}
                     </p>
+                    {signal && (
+                      <p className="mt-3 border-t border-white/[0.06] pt-3 text-[11px] leading-relaxed text-muted-foreground/60">
+                        <span className="font-medium text-muted-foreground/80">Signal: </span>
+                        {signal}
+                      </p>
+                    )}
                     <Button
                       size="sm"
-                      disabled={isActivated}
-                      onClick={() => setActivatedCards((prev) => [...prev, id])}
-                      className={
-                        isActivated
-                          ? "mt-4 w-full rounded-lg bg-emerald-900/30 text-xs font-medium text-emerald-400"
-                          : "mt-4 w-full rounded-lg border border-brand/40 bg-transparent text-xs font-medium text-brand hover:bg-brand/10"
-                      }
+                      onClick={() => goTo("dashboard")}
+                      className="mt-4 w-full rounded-lg border border-brand/40 bg-transparent text-xs font-medium text-brand hover:bg-brand/10"
                     >
-                      {isActivated ? "Activated ✓" : "Activate"}
+                      Start this →
                     </Button>
                   </div>
                 );
