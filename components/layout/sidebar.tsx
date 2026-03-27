@@ -30,10 +30,10 @@ export function Sidebar() {
         </div>
         <div>
           <span className="text-[15px] font-semibold tracking-[-0.01em]">
-            Zeta
+            First
           </span>
-          <span className="ml-1 text-[15px] font-light tracking-[-0.01em] text-muted-foreground">
-            Terminal
+          <span className="text-[15px] font-light tracking-[-0.01em] text-muted-foreground">
+            CMO
           </span>
         </div>
       </div>
@@ -73,7 +73,7 @@ export function Sidebar() {
           Strategy mode
         </p>
         <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-          Brief Zeta on your business to generate automations.
+          Brief FirstCMO on your business to build your marketing strategy.
         </p>
         <Link
           href="/chat"

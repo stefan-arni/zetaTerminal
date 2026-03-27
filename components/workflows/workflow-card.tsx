@@ -56,8 +56,8 @@ export function WorkflowCard({ workflow }: WorkflowCardProps) {
             onClick={() => toggleStatus(workflow.id)}
             aria-label={
               workflow.status === "active"
-                ? "Pause automation"
-                : "Resume automation"
+                ? "Pause workflow"
+                : "Resume workflow"
             }
           >
             {workflow.status === "active" ? (
@@ -70,7 +70,7 @@ export function WorkflowCard({ workflow }: WorkflowCardProps) {
             variant="ghost"
             size="icon-sm"
             onClick={() => deleteWorkflow(workflow.id)}
-            aria-label="Delete automation"
+            aria-label="Delete workflow"
           >
             <Trash2 className="size-3.5" />
           </Button>

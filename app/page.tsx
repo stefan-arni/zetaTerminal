@@ -1,24 +1,25 @@
 "use client";
 
 import { Zap } from "lucide-react";
-import { StepIndicator } from "@/components/layout/step-indicator";
 import { useStepper } from "@/context/stepper-context";
 import { UploadStep } from "@/components/steps/upload-step";
 import { StrategyStep } from "@/components/steps/strategy-step";
-import { ScheduleStep } from "@/components/steps/schedule-step";
-import { ReviewStep } from "@/components/steps/review-step";
+import { BriefStep } from "@/components/steps/brief-step";
+import { DashboardStep } from "@/components/steps/dashboard-step";
 
 const STEP_COMPONENTS = {
   upload: UploadStep,
   strategy: StrategyStep,
-  schedule: ScheduleStep,
-  review: ReviewStep,
+  brief: BriefStep,
+  dashboard: DashboardStep,
 } as const;
 
 export default function Page() {
   const { currentStep, meta } = useStepper();
   const StepComponent = STEP_COMPONENTS[currentStep];
   const m = meta[currentStep];
+  const isDashboard = currentStep === "dashboard";
+  const hideHeader = isDashboard || currentStep === "upload";
 
   return (
     <div className="flex h-full flex-col">
@@ -28,24 +29,31 @@ export default function Page() {
           <div className="flex size-7 items-center justify-center rounded-lg bg-brand">
             <Zap className="size-3.5 text-white" />
           </div>
-          <span className="text-sm font-semibold tracking-[-0.01em]">
-            Zeta
-          </span>
+          <div className="flex flex-col justify-center">
+            <span className="text-sm font-semibold leading-tight tracking-[-0.01em]">
+              FirstCMO
+            </span>
+            <span className="text-[10px] leading-tight text-muted-foreground">
+              Brand strategy for founders
+            </span>
+          </div>
         </div>
-        <StepIndicator />
-        <div className="w-[90px]" />
+        <a
+          href="/workflows"
+          className="w-[90px] text-right text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+        >
+          Demo →
+        </a>
       </header>
 
-      {/* Step header */}
-      <div className="shrink-0 border-b border-white/[0.06] px-8 py-5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-brand">
-          Step {m.number} of 4
-        </p>
-        <h1 className="mt-1 text-xl font-semibold tracking-tight">
-          {m.label}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>
-      </div>
+      {/* Step header — hidden on dashboard and upload (they have their own headings) */}
+      {!hideHeader && (
+        <div className="shrink-0 border-b border-white/[0.06] px-8 py-5">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {m.label}
+          </h1>
+        </div>
+      )}
 
       {/* Step content */}
       <div className="flex-1 overflow-hidden">

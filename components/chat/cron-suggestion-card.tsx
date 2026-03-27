@@ -54,7 +54,7 @@ export function CronSuggestionCard({
           </div>
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-brand">
-              Proposed automation
+              Recommended play
             </p>
             <p className="mt-0.5 text-sm font-medium">{suggestion.name}</p>
           </div>

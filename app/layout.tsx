@@ -18,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Zeta Terminal",
+  title: "FirstCMO",
   description: "AI-powered marketing operations for solopreneurs",
 };
 

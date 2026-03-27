@@ -12,14 +12,14 @@ export function WorkflowList() {
   if (workflows.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/[0.08] py-20 text-center">
-        <p className="text-sm font-medium">No automations configured</p>
+        <p className="text-sm font-medium">No workflows configured</p>
         <p className="mt-1.5 text-sm text-muted-foreground">
           Start a strategy session to build your campaign pipeline.
         </p>
         <Link href="/chat" className="mt-5">
           <Button className="gap-2 rounded-lg bg-brand text-sm font-medium text-white hover:bg-brand/80">
             <Plus className="size-4" />
-            New automation
+            New workflow
           </Button>
         </Link>
       </div>
@@ -30,7 +30,7 @@ export function WorkflowList() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {workflows.length} automation{workflows.length !== 1 ? "s" : ""} &middot;{" "}
+          {workflows.length} workflow{workflows.length !== 1 ? "s" : ""} &middot;{" "}
           {workflows.filter((w) => w.status === "active").length} live
         </p>
         <Link href="/chat">
@@ -39,7 +39,7 @@ export function WorkflowList() {
             className="gap-2 rounded-lg bg-brand text-xs font-medium text-white hover:bg-brand/80"
           >
             <Plus className="size-3.5" />
-            New automation
+            New workflow
           </Button>
         </Link>
       </div>

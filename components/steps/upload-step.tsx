@@ -1,62 +1,63 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, Globe, Loader2, Plus, X } from "lucide-react";
-import { FileUploadZone } from "@/components/files/file-upload-zone";
-import { FileList } from "@/components/files/file-list";
+import { ArrowRight, CheckCircle2, FileText, Loader2, Plus, X } from "lucide-react";
 import { useFiles } from "@/context/files-context";
 import { useStepper } from "@/context/stepper-context";
 import type { FileCategory } from "@/lib/types";
 
-interface UrlInput {
-  id: string;
-  label: string;
-  placeholder: string;
-  category: FileCategory;
+// ── Url pill ───────────────────────────────────────────────────────────────────
+
+function domainFromUrl(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
 }
 
-const URL_INPUTS: UrlInput[] = [
-  {
-    id: "landing",
-    label: "Your landing page",
-    placeholder: "https://yourproduct.com",
-    category: "landing-page",
-  },
-  {
-    id: "competitor1",
-    label: "Competitor",
-    placeholder: "https://competitor.com",
-    category: "competitor",
-  },
-];
+// ── Main component ─────────────────────────────────────────────────────────────
 
 export function UploadStep() {
-  const { files, addUrl } = useFiles();
+  const { files, addUrl, addFile, removeFile } = useFiles();
   const { next } = useStepper();
-  const [urls, setUrls] = useState<Record<string, string>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [landingUrl, setLandingUrl] = useState("");
+  const [competitorUrl, setCompetitorUrl] = useState("");
+  const [extraCompetitors, setExtraCompetitors] = useState<Array<{ id: string; value: string }>>([]);
   const [loadingUrls, setLoadingUrls] = useState<Record<string, boolean>>({});
   const [urlErrors, setUrlErrors] = useState<Record<string, string>>({});
-  const [extraCompetitors, setExtraCompetitors] = useState<string[]>([]);
 
-  const totalAssets = files.length;
+  const landingFiles = files.filter((f) => f.category === "landing-page");
+  const competitorFiles = files.filter((f) => f.category === "competitor");
+  const docFiles = files.filter((f) => f.category === "document");
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = e.target.files;
+    if (!picked) return;
+    for (const file of Array.from(picked)) {
+      await addFile(file);
+    }
+    e.target.value = "";
+  }
 
   async function handleScrape(inputId: string, url: string, category: FileCategory) {
     if (!url.trim()) return;
-
-    // Auto-prepend https if missing
-    let normalizedUrl = url.trim();
-    if (!normalizedUrl.startsWith("http")) {
-      normalizedUrl = "https://" + normalizedUrl;
-    }
+    let normalized = url.trim();
+    if (!normalized.startsWith("http")) normalized = "https://" + normalized;
 
     setLoadingUrls((p) => ({ ...p, [inputId]: true }));
     setUrlErrors((p) => ({ ...p, [inputId]: "" }));
 
     try {
-      await addUrl(normalizedUrl, category);
-      setUrls((p) => ({ ...p, [inputId]: "" }));
+      await addUrl(normalized, category);
+      // Clear the corresponding input
+      if (inputId === "landing") setLandingUrl("");
+      else if (inputId === "competitor") setCompetitorUrl("");
+      else setExtraCompetitors((p) => p.map((c) => (c.id === inputId ? { ...c, value: "" } : c)));
     } catch (err) {
       setUrlErrors((p) => ({
         ...p,
@@ -67,141 +68,219 @@ export function UploadStep() {
     }
   }
 
-  function addCompetitorField() {
-    setExtraCompetitors((p) => [
-      ...p,
-      `extra-${Date.now()}`,
-    ]);
+  function handleNext() {
+    localStorage.setItem("zeta_session_count", "1");
+    next();
   }
 
-  const allUrlInputs: UrlInput[] = [
-    ...URL_INPUTS,
-    ...extraCompetitors.map((id, i) => ({
-      id,
-      label: `Competitor ${i + 2}`,
-      placeholder: "https://anothercompetitor.com",
-      category: "competitor" as FileCategory,
-    })),
-  ];
-
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex-1 overflow-auto px-8 py-8">
-        <div className="mx-auto max-w-[800px] space-y-10">
-          {/* URLs section */}
-          <div>
-            <div className="mb-1 flex items-center gap-2">
-              <Globe className="size-4 text-brand" />
-              <h3 className="text-sm font-semibold">Live URLs</h3>
-            </div>
-            <p className="mb-5 text-sm text-muted-foreground">
-              We&apos;ll scrape these to understand how you&apos;re actually positioning
-              yourself — and how your competitors are.
+    <div className="flex h-full flex-col overflow-y-auto">
+      <div className="mx-auto w-full max-w-2xl px-8 py-10">
+
+        {/* Page heading */}
+        <div className="mb-8">
+          <h1 className="text-[26px] font-semibold tracking-tight text-foreground">
+            Welcome to FirstCMO. Let&apos;s get your strategy set.
+          </h1>
+          <p className="mt-1.5 text-[13px] text-muted-foreground">
+            Give me your site and a competitor — I&apos;ll read through everything before we talk.
+          </p>
+        </div>
+
+        {/* Your Context card */}
+        <div className="mb-8 rounded-2xl border border-white/[0.08] bg-surface px-7 py-6">
+          <p className="mb-5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/50">
+            Your Context
+          </p>
+
+          {/* Your App */}
+          <div className="mb-6">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
+              Your App
             </p>
-            <div className="space-y-3">
-              {allUrlInputs.map((input) => (
-                <div key={input.id}>
-                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                    {input.label}
-                  </label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={urls[input.id] ?? ""}
-                      onChange={(e) =>
-                        setUrls((p) => ({ ...p, [input.id]: e.target.value }))
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleScrape(input.id, urls[input.id] ?? "", input.category);
-                        }
-                      }}
-                      placeholder={input.placeholder}
-                      className="rounded-lg border-white/[0.08] bg-surface text-sm placeholder:text-muted-foreground/40"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        handleScrape(input.id, urls[input.id] ?? "", input.category)
-                      }
-                      disabled={!urls[input.id]?.trim() || loadingUrls[input.id]}
-                      className="shrink-0 rounded-lg px-4"
-                    >
-                      {loadingUrls[input.id] ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        "Scrape"
-                      )}
-                    </Button>
-                  </div>
-                  {urlErrors[input.id] && (
-                    <p className="mt-1.5 text-xs text-destructive">
-                      {urlErrors[input.id]}
-                    </p>
-                  )}
+            {landingFiles.map((f) => (
+              <div key={f.id} className="mb-2 flex items-center gap-2">
+                <CheckCircle2 className="size-3.5 shrink-0 text-brand/70" />
+                <span className="min-w-0 flex-1 truncate text-[13px] text-foreground/80">
+                  {domainFromUrl(f.sourceUrl ?? f.name)}
+                </span>
+                <button
+                  onClick={() => removeFile(f.id)}
+                  className="shrink-0 rounded p-0.5 text-muted-foreground/30 transition-colors hover:text-muted-foreground"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <Input
+                value={landingUrl}
+                onChange={(e) => setLandingUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleScrape("landing", landingUrl, "landing-page");
+                }}
+                placeholder="https://yourapp.com"
+                className="h-9 rounded-lg border-white/[0.08] bg-background text-[13px] placeholder:text-muted-foreground/30 focus-visible:ring-brand/30"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleScrape("landing", landingUrl, "landing-page")}
+                disabled={!landingUrl.trim() || loadingUrls["landing"]}
+                className="h-9 shrink-0 rounded-lg border-white/[0.08] px-4 text-[12px]"
+              >
+                {loadingUrls["landing"] ? <Loader2 className="size-3.5 animate-spin" /> : "Add →"}
+              </Button>
+            </div>
+            {urlErrors["landing"] && (
+              <p className="mt-1.5 text-[11px] text-destructive">{urlErrors["landing"]}</p>
+            )}
+          </div>
+
+          {/* Competitors */}
+          <div>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
+              Competitors
+            </p>
+            {competitorFiles.map((f) => (
+              <div key={f.id} className="mb-2 flex items-center gap-2">
+                <CheckCircle2 className="size-3.5 shrink-0 text-muted-foreground/50" />
+                <span className="min-w-0 flex-1 truncate text-[13px] text-foreground/80">
+                  {domainFromUrl(f.sourceUrl ?? f.name)}
+                </span>
+                <button
+                  onClick={() => removeFile(f.id)}
+                  className="shrink-0 rounded p-0.5 text-muted-foreground/30 transition-colors hover:text-muted-foreground"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <Input
+                value={competitorUrl}
+                onChange={(e) => setCompetitorUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleScrape("competitor", competitorUrl, "competitor");
+                }}
+                placeholder="https://competitor.com"
+                className="h-9 rounded-lg border-white/[0.08] bg-background text-[13px] placeholder:text-muted-foreground/30 focus-visible:ring-brand/30"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleScrape("competitor", competitorUrl, "competitor")}
+                disabled={!competitorUrl.trim() || loadingUrls["competitor"]}
+                className="h-9 shrink-0 rounded-lg border-white/[0.08] px-4 text-[12px]"
+              >
+                {loadingUrls["competitor"] ? <Loader2 className="size-3.5 animate-spin" /> : "Add →"}
+              </Button>
+            </div>
+            {urlErrors["competitor"] && (
+              <p className="mt-1.5 text-[11px] text-destructive">{urlErrors["competitor"]}</p>
+            )}
+
+            {/* Extra competitors */}
+            {extraCompetitors.map((ec, i) => (
+              <div key={ec.id} className="mt-3">
+                <div className="flex gap-2">
+                  <Input
+                    value={ec.value}
+                    onChange={(e) =>
+                      setExtraCompetitors((p) =>
+                        p.map((c) => (c.id === ec.id ? { ...c, value: e.target.value } : c))
+                      )
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleScrape(ec.id, ec.value, "competitor");
+                    }}
+                    placeholder={`https://competitor${i + 2}.com`}
+                    className="h-9 rounded-lg border-white/[0.08] bg-background text-[13px] placeholder:text-muted-foreground/30 focus-visible:ring-brand/30"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleScrape(ec.id, ec.value, "competitor")}
+                    disabled={!ec.value.trim() || loadingUrls[ec.id]}
+                    className="h-9 shrink-0 rounded-lg border-white/[0.08] px-4 text-[12px]"
+                  >
+                    {loadingUrls[ec.id] ? <Loader2 className="size-3.5 animate-spin" /> : "Add →"}
+                  </Button>
+                </div>
+                {urlErrors[ec.id] && (
+                  <p className="mt-1.5 text-[11px] text-destructive">{urlErrors[ec.id]}</p>
+                )}
+              </div>
+            ))}
+
+            <button
+              onClick={() =>
+                setExtraCompetitors((p) => [...p, { id: `extra-${Date.now()}`, value: "" }])
+              }
+              className="mt-3 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Plus className="size-3" />
+              Add another competitor
+            </button>
+          </div>
+        </div>
+
+        {/* Notes & Files */}
+        <div className="mb-8 rounded-2xl border border-white/[0.08] bg-surface px-7 py-6">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/50">
+            Notes &amp; Files
+          </p>
+          <p className="mb-5 text-[13px] text-muted-foreground">
+            Positioning doc, pitch deck notes, anything else you want me to read.
+          </p>
+
+          {docFiles.length > 0 && (
+            <div className="mb-4 space-y-2">
+              {docFiles.map((f) => (
+                <div key={f.id} className="flex items-center gap-2">
+                  <FileText className="size-3.5 shrink-0 text-muted-foreground/50" />
+                  <span className="min-w-0 flex-1 truncate text-[13px] text-foreground/80">
+                    {f.name}
+                  </span>
+                  <button
+                    onClick={() => removeFile(f.id)}
+                    className="shrink-0 rounded p-0.5 text-muted-foreground/30 transition-colors hover:text-muted-foreground"
+                  >
+                    <X className="size-3.5" />
+                  </button>
                 </div>
               ))}
-              <button
-                onClick={addCompetitorField}
-                className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <Plus className="size-3" />
-                Add another competitor
-              </button>
-            </div>
-          </div>
-
-          {/* File upload section */}
-          <div>
-            <h3 className="mb-1 text-sm font-semibold">Documents &amp; files</h3>
-            <p className="mb-5 text-sm text-muted-foreground">
-              Pitch deck, investor updates, GTM plans, customer conversations,
-              brand assets — anything that helps us understand the real picture.
-            </p>
-            <FileUploadZone />
-          </div>
-
-          {/* Uploaded assets */}
-          {totalAssets > 0 && (
-            <div>
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-sm font-semibold">
-                  {totalAssets} asset{totalAssets !== 1 ? "s" : ""} ingested
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  The AI will analyze all of these before your strategy session
-                </p>
-              </div>
-              <FileList />
             </div>
           )}
 
-          {totalAssets === 0 && (
-            <div className="rounded-xl border border-dashed border-white/[0.08] py-12 text-center">
-              <p className="text-sm text-muted-foreground">
-                No assets yet. Add at least a URL or a file so Zeta can
-                audit your brand — or skip ahead and describe everything
-                in the strategy session.
-              </p>
-            </div>
-          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".md,.txt,.pdf"
+            multiple
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Plus className="size-3.5" />
+            Add .md, .txt, or .pdf
+          </button>
         </div>
-      </div>
 
-      {/* Bottom bar */}
-      <div className="flex shrink-0 items-center justify-between border-t border-white/[0.06] px-8 py-4">
-        <p className="text-xs text-muted-foreground">
-          {totalAssets > 0
-            ? `${totalAssets} asset${totalAssets !== 1 ? "s" : ""} ready for brand audit`
-            : "You can skip this step"}
-        </p>
-        <Button
-          onClick={next}
-          className="gap-2 rounded-lg bg-brand px-5 text-sm font-medium text-white hover:bg-brand/80"
-        >
-          {totalAssets > 0 ? "Start brand audit" : "Skip to strategy"}
-          <ArrowRight className="size-4" />
-        </Button>
+        {/* CTA */}
+        <div className="flex justify-end">
+          <Button
+            onClick={handleNext}
+            className="gap-2 rounded-xl bg-brand px-6 py-2.5 text-[13px] font-semibold text-white hover:bg-brand/80"
+          >
+            Start strategy session
+            <ArrowRight className="size-4" />
+          </Button>
+        </div>
+
       </div>
     </div>
   );

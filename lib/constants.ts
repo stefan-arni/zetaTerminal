@@ -1,4 +1,4 @@
-export const APP_NAME = "Zeta Terminal";
+export const APP_NAME = "FirstCMO";
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -58,9 +58,9 @@ export const FREQUENCY_LABELS: Record<string, string> = {
 export const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export const NAV_ITEMS = [
-  { label: "Command Center", href: "/", icon: "LayoutDashboard" as const },
+  { label: "Dashboard", href: "/", icon: "LayoutDashboard" as const },
   { label: "Strategy", href: "/chat", icon: "MessageSquare" as const },
-  { label: "Automations", href: "/workflows", icon: "Workflow" as const },
+  { label: "Workflows", href: "/workflows", icon: "Workflow" as const },
   { label: "Assets", href: "/files", icon: "FolderOpen" as const },
 ];
 

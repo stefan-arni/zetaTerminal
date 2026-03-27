@@ -10,7 +10,7 @@ export function FileList() {
     return (
       <div className="rounded-xl border border-dashed border-white/[0.08] py-16 text-center">
         <p className="text-sm text-muted-foreground">
-          No assets uploaded yet. Add your brand materials so Zeta can craft
+          No assets uploaded yet. Add your brand materials so FirstCMO can craft
           on-brand campaigns.
         </p>
       </div>

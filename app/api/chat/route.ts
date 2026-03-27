@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { buildSystemPrompt } from "@/lib/ai/system-prompt";
+import { buildSystemPrompt, buildTacticalSystemPrompt, type WorkflowContext } from "@/lib/ai/system-prompt";
 import { AGENT_TOOLS } from "@/lib/ai/tools";
 import type { CronConfig, UploadedFile } from "@/lib/types";
 
@@ -11,14 +11,18 @@ interface ChatRequest {
   messages: OpenAI.ChatCompletionMessageParam[];
   files: UploadedFile[];
   workflows: CronConfig[];
+  workflowContext?: WorkflowContext;
+  sessionNumber?: number;
 }
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as ChatRequest;
-    const { messages, files, workflows } = body;
+    const { messages, files, workflows, workflowContext, sessionNumber } = body;
 
-    const systemPrompt = buildSystemPrompt(files, workflows);
+    const systemPrompt = workflowContext
+      ? buildTacticalSystemPrompt(workflowContext)
+      : buildSystemPrompt(files, workflows, sessionNumber ?? 1);
 
     const client = getClient();
     const stream = await client.chat.completions.create({

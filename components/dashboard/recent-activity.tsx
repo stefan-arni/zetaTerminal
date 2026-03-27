@@ -27,7 +27,7 @@ export function RecentActivity() {
           <div className="px-5 py-10 text-center">
             <p className="text-sm text-muted-foreground">
               No runs yet. Start a strategy session to build your first
-              automation.
+              workflow.
             </p>
           </div>
         ) : (

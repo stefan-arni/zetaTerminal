@@ -255,7 +255,7 @@ export function ChatInterface() {
               <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
                 Tell me about your product, who you&apos;re trying to reach, and
                 what&apos;s blocking growth. I&apos;ll design a campaign playbook
-                with recurring automations you can deploy today.
+                with recommended plays you can deploy today.
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-2">
                 {[
@@ -314,7 +314,7 @@ export function ChatInterface() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Describe your product, audience, or next campaign..."
+            placeholder="Talk to your CMO..."
             className="min-h-[48px] max-h-[140px] resize-none rounded-xl border-white/[0.08] bg-surface text-sm placeholder:text-muted-foreground/50 focus-visible:ring-brand/30"
             rows={1}
             disabled={isStreaming}

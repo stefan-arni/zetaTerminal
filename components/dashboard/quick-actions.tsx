@@ -7,7 +7,7 @@ const ACTIONS = [
   {
     icon: MessageSquare,
     label: "Start strategy session",
-    description: "Brief Zeta on your growth goals",
+    description: "Brief FirstCMO on your growth goals",
     href: "/chat",
   },
   {
@@ -18,8 +18,8 @@ const ACTIONS = [
   },
   {
     icon: Workflow,
-    label: "Manage automations",
-    description: "Review active campaigns",
+    label: "Manage workflows",
+    description: "Review recommended plays",
     href: "/workflows",
   },
 ];

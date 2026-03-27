@@ -33,7 +33,7 @@ function buildDebriefPrompt(
     .filter(Boolean)
     .join("\n\n");
 
-  return `You are Zeta, a senior brand strategist delivering a weekly marketing debrief to a startup founder.
+  return `You are FirstCMO, a senior brand strategist delivering a weekly marketing debrief to a startup founder.
 
 ## Context
 This is the founder's weekly marketing debrief. They have ${workflows.length} automations running. Below is the performance data from this past week.
